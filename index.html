@@ -10,7 +10,7 @@
         .screen { display: none; padding: 20px; text-align: center; }
         .active { display: block; }
         canvas { background: #222; border: 2px dashed #4caf50; touch-action: none; margin: 10px auto; max-width: 100%; display: block; }
-        input, button { padding: 10px; margin: 5px; font-size: 16px; border-radius: 5px; border: none; }
+        input, button { padding: 10px; margin: 5px; font-size: 14px; border-radius: 5px; border: none; }
         button { background: #4caf50; color: white; cursor: pointer; font-weight: bold; }
         button:hover { background: #45a049; }
         .nav-buttons { margin-top: 20px; }
@@ -20,6 +20,8 @@
         .plot-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .pdf-page { background: white; color: black; padding: 20px; text-align: center; margin-bottom: 20px; width: 210mm; min-height: 297mm; box-sizing: border-box; }
         #pdf-content { display: none; background: #ccc; padding: 20px; }
+        .file-upload-btn { background: #2196F3; }
+        .file-upload-btn:hover { background: #0b7dda; }
     </style>
 </head>
 <body>
@@ -27,7 +29,12 @@
     <!-- Screen 1: Plot & Degree -->
     <div id="screen1" class="screen active">
         <h2>1. Plot & Degree Setup</h2>
-        <p>Plot ke kono par tap karein. (Irregular plots allowed)</p>
+        
+        <!-- Map Upload Feature -->
+        <input type="file" id="mapUpload" accept="image/*" style="display:none;" onchange="loadMap(event)">
+        <button class="file-upload-btn" onclick="document.getElementById('mapUpload').click()">🖼️ Upload Map</button>
+        
+        <p>Dot lagane ke liye tap karein. Galat lage toh pakad kar khiskayein (Drag karein).</p>
         <input type="number" id="plotDegree" placeholder="Plot Degree (e.g., 45)" value="0" onchange="updateDegree()">
         <canvas id="plotCanvas" width="300" height="300"></canvas>
         <div class="nav-buttons">
@@ -80,7 +87,6 @@
     <div id="screen5" class="screen">
         <h2>5. 45 Vastu Devtas</h2>
         <div class="chakra-container">
-            <!-- 45 devta base can be updated here -->
             <img src="1000071166.png" class="chakra-img" id="cimg4" alt="45 Devtas">
             <canvas class="plot-overlay" id="overlay4" width="300" height="300"></canvas>
         </div>
@@ -104,7 +110,7 @@
         </div>
     </div>
 
-    <!-- Hidden PDF Content to be generated -->
+    <!-- Hidden PDF Content -->
     <div id="pdf-content">
         <div class="pdf-page" id="pdf-page-content">
             <h1>Vastu Plot Analysis</h1>
@@ -118,8 +124,25 @@
     let currentScreen = 1;
     let points = [];
     let degree = 0;
+    let mapImage = null; 
+    let draggingPointIndex = -1; // New: Kaun sa dot drag ho raha hai track karne ke liye
+    const DRAG_RADIUS = 20; // New: Touch karne ka area
+
     const canvas = document.getElementById('plotCanvas');
     const ctx = canvas.getContext('2d');
+
+    function loadMap(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            mapImage = new Image();
+            mapImage.onload = function() { drawPlot(ctx); }
+            mapImage.src = e.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
 
     function nextScreen(num) {
         document.getElementById('screen'+currentScreen).classList.remove('active');
@@ -139,14 +162,71 @@
         }
     }
 
-    canvas.addEventListener('click', (e) => {
+    // New Drag & Drop Logic Start
+    function getPointerPos(e) {
         const rect = canvas.getBoundingClientRect();
-        points.push({x: e.clientX - rect.left, y: e.clientY - rect.top});
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function handleStart(e) {
+        e.preventDefault();
+        const pos = getPointerPos(e);
+        draggingPointIndex = -1;
+        
+        // Check if touched near an existing dot
+        for (let i = 0; i < points.length; i++) {
+            const dx = pos.x - points[i].x;
+            const dy = pos.y - points[i].y;
+            if (Math.sqrt(dx * dx + dy * dy) < DRAG_RADIUS) {
+                draggingPointIndex = i; // Agar dot pakda, to naya mat banao
+                break;
+            }
+        }
+        
+        // Agar dot ke upar touch nahi kiya, to naya dot banao
+        if (draggingPointIndex === -1) {
+            points.push({x: pos.x, y: pos.y});
+            draggingPointIndex = points.length - 1; // naye dot ko turant drag kar sako
+        }
         drawPlot(ctx);
-    });
+    }
+
+    function handleMove(e) {
+        if (draggingPointIndex !== -1) {
+            e.preventDefault();
+            const pos = getPointerPos(e);
+            points[draggingPointIndex] = {x: pos.x, y: pos.y}; // Dot ki position update karo
+            drawPlot(ctx);
+        }
+    }
+
+    function handleEnd(e) {
+        draggingPointIndex = -1; // Upar uli uthane par drag band
+    }
+
+    // Mouse Events (PC ke liye)
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    canvas.addEventListener('mouseup', handleEnd);
+    canvas.addEventListener('mouseleave', handleEnd);
+
+    // Touch Events (Mobile ke liye)
+    canvas.addEventListener('touchstart', handleStart, {passive: false});
+    canvas.addEventListener('touchmove', handleMove, {passive: false});
+    canvas.addEventListener('touchend', handleEnd);
+    // New Drag & Drop Logic End
 
     function drawPlot(context) {
         context.clearRect(0, 0, 300, 300);
+        
+        if (mapImage) {
+            context.globalAlpha = 0.5; 
+            context.drawImage(mapImage, 0, 0, 300, 300);
+            context.globalAlpha = 1.0;
+        }
+
         if(points.length === 0) return;
         
         context.strokeStyle = '#4caf50';
@@ -160,7 +240,7 @@
         let cx = 0, cy = 0;
         points.forEach((p, i) => {
             context.fillStyle = '#ff5722';
-            context.beginPath(); context.arc(p.x, p.y, 4, 0, Math.PI*2); context.fill();
+            context.beginPath(); context.arc(p.x, p.y, 6, 0, Math.PI*2); context.fill(); // Dot thoda bada kiya
             cx += p.x; cy += p.y;
         });
 
