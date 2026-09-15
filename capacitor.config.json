@@ -1,0 +1,6 @@
+{
+  "appId": "com.sailohani.vastuapp",
+  "appName": "VastuAnalyzer",
+  "webDir": ".",
+  "bundledWebRuntime": false
+}

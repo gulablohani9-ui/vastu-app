@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vastu Plot Analyzer - Sai Lohani</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; }
+        .screen { display: none; padding: 20px; text-align: center; }
+        .active { display: block; }
+        canvas { background: #222; border: 2px dashed #4caf50; touch-action: none; margin: 10px auto; max-width: 100%; display: block; }
+        input, button { padding: 10px; margin: 5px; font-size: 16px; border-radius: 5px; border: none; }
+        button { background: #4caf50; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #45a049; }
+        .nav-buttons { margin-top: 20px; }
+        .branding { margin-top: 15px; font-size: 16px; color: #ccc; }
+        .chakra-container { position: relative; width: 300px; height: 300px; margin: 20px auto; border: 1px solid #333; overflow: hidden; background: #000; }
+        .chakra-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: transform 0.3s; object-fit: contain; }
+        .plot-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .pdf-page { background: white; color: black; padding: 20px; text-align: center; margin-bottom: 20px; width: 210mm; min-height: 297mm; box-sizing: border-box; }
+        #pdf-content { display: none; background: #ccc; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- Screen 1: Plot & Degree -->
+    <div id="screen1" class="screen active">
+        <h2>1. Plot & Degree Setup</h2>
+        <p>Plot ke kono par tap karein. (Irregular plots allowed)</p>
+        <input type="number" id="plotDegree" placeholder="Plot Degree (e.g., 45)" value="0" onchange="updateDegree()">
+        <canvas id="plotCanvas" width="300" height="300"></canvas>
+        <div class="nav-buttons">
+            <button onclick="undoPoint()">Undo Dot</button>
+            <button onclick="clearPoints()">Clear All</button>
+            <button onclick="nextScreen(2)">Next: Chakra 1</button>
+        </div>
+    </div>
+
+    <!-- Screen 2: Chakra 1 -->
+    <div id="screen2" class="screen">
+        <h2>2. Vastu Chakra 1</h2>
+        <div class="chakra-container">
+            <img src="1000079054.png" class="chakra-img" id="cimg1" alt="Chakra 1">
+            <canvas class="plot-overlay" id="overlay1" width="300" height="300"></canvas>
+        </div>
+        <div class="nav-buttons">
+            <button onclick="nextScreen(1)">Back</button>
+            <button onclick="nextScreen(3)">Next</button>
+        </div>
+    </div>
+
+    <!-- Screen 3: Chakra 2 -->
+    <div id="screen3" class="screen">
+        <h2>3. Vastu Chakra 2</h2>
+        <div class="chakra-container">
+            <img src="1000071649.jpg" class="chakra-img" id="cimg2" alt="Chakra 2">
+            <canvas class="plot-overlay" id="overlay2" width="300" height="300"></canvas>
+        </div>
+        <div class="nav-buttons">
+            <button onclick="nextScreen(2)">Back</button>
+            <button onclick="nextScreen(4)">Next</button>
+        </div>
+    </div>
+
+    <!-- Screen 4: Chakra 3 -->
+    <div id="screen4" class="screen">
+        <h2>4. Vastu Chakra 3</h2>
+        <div class="chakra-container">
+            <img src="1000071166.png" class="chakra-img" id="cimg3" alt="Chakra 3">
+            <canvas class="plot-overlay" id="overlay3" width="300" height="300"></canvas>
+        </div>
+        <div class="nav-buttons">
+            <button onclick="nextScreen(3)">Back</button>
+            <button onclick="nextScreen(5)">Next</button>
+        </div>
+    </div>
+
+    <!-- Screen 5: 45 Devtas -->
+    <div id="screen5" class="screen">
+        <h2>5. 45 Vastu Devtas</h2>
+        <div class="chakra-container">
+            <!-- 45 devta base can be updated here -->
+            <img src="1000071166.png" class="chakra-img" id="cimg4" alt="45 Devtas">
+            <canvas class="plot-overlay" id="overlay4" width="300" height="300"></canvas>
+        </div>
+        <div class="nav-buttons">
+            <button onclick="nextScreen(4)">Back</button>
+            <button onclick="nextScreen(6)">Next: PDF Generation</button>
+        </div>
+    </div>
+
+    <!-- Screen 6: Final & PDF -->
+    <div id="screen6" class="screen">
+        <h2>6. Final Report (HD PDF)</h2>
+        <div class="branding">
+            <p><strong>Consultant:</strong> Sai Lohani</p>
+            <p><strong>Contact:</strong> Update Number Here</p>
+        </div>
+        <div class="nav-buttons">
+            <button onclick="generatePDF()">Download HD PDF</button>
+            <br><br>
+            <button onclick="nextScreen(1)">Start Over</button>
+        </div>
+    </div>
+
+    <!-- Hidden PDF Content to be generated -->
+    <div id="pdf-content">
+        <div class="pdf-page" id="pdf-page-content">
+            <h1>Vastu Plot Analysis</h1>
+            <h3>Consultant: Sai Lohani</h3>
+            <p id="pdf-degree-text"></p>
+            <div id="pdf-images"></div>
+        </div>
+    </div>
+
+<script>
+    let currentScreen = 1;
+    let points = [];
+    let degree = 0;
+    const canvas = document.getElementById('plotCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function nextScreen(num) {
+        document.getElementById('screen'+currentScreen).classList.remove('active');
+        currentScreen = num;
+        document.getElementById('screen'+currentScreen).classList.add('active');
+        if(currentScreen > 1 && currentScreen < 6) {
+            updateDegree();
+            drawOverlay('overlay'+(currentScreen-1));
+        }
+    }
+
+    function updateDegree() {
+        degree = document.getElementById('plotDegree').value || 0;
+        for(let i=1; i<=4; i++) {
+            let img = document.getElementById('cimg'+i);
+            if(img) img.style.transform = `rotate(${degree}deg)`;
+        }
+    }
+
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        points.push({x: e.clientX - rect.left, y: e.clientY - rect.top});
+        drawPlot(ctx);
+    });
+
+    function drawPlot(context) {
+        context.clearRect(0, 0, 300, 300);
+        if(points.length === 0) return;
+        
+        context.strokeStyle = '#4caf50';
+        context.lineWidth = 2;
+        context.beginPath();
+        context.moveTo(points[0].x, points[0].y);
+        points.forEach(p => context.lineTo(p.x, p.y));
+        if(points.length > 2) context.closePath();
+        context.stroke();
+
+        let cx = 0, cy = 0;
+        points.forEach((p, i) => {
+            context.fillStyle = '#ff5722';
+            context.beginPath(); context.arc(p.x, p.y, 4, 0, Math.PI*2); context.fill();
+            cx += p.x; cy += p.y;
+        });
+
+        if (points.length >= 3) {
+            cx /= points.length; cy /= points.length;
+            context.fillStyle = '#00bcd4';
+            context.beginPath(); context.arc(cx, cy, 6, 0, Math.PI*2); context.fill();
+            context.fillText('Brahma Sthan', cx+10, cy);
+        }
+    }
+
+    function drawOverlay(id) {
+        let oCtx = document.getElementById(id).getContext('2d');
+        drawPlot(oCtx);
+    }
+
+    function undoPoint() { points.pop(); drawPlot(ctx); }
+    function clearPoints() { points = []; drawPlot(ctx); }
+
+    function generatePDF() {
+        document.getElementById('pdf-degree-text').innerText = "Plot Degree: " + degree + "°";
+        const element = document.getElementById('pdf-page-content');
+        element.style.display = 'block';
+        
+        const opt = {
+            margin:       10,
+            filename:     'Vastu_Report_Sai_Lohani.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save().then(() => {
+            element.style.display = 'none';
+        });
+    }
+</script>
+</body>
+</html>
