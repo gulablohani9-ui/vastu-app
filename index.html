@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vastu Plot Analyzer - Sai Lohani</title>
-    <!-- jsPDF library for 100% guaranteed PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
@@ -21,10 +20,23 @@
         .nav-buttons { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
         
         /* PDF Preview Area */
-        #pdfPreviewContainer { width: 100%; max-width: 600px; height: 400px; overflow-y: scroll; margin: 10px auto; border: 2px solid #fff; background: #e0e0e0; }
-        #pdfCanvas { width: 100%; height: auto; display: block; background: #fff; }
+        #pdfPreviewContainer { width: 100%; max-width: 600px; height: 500px; overflow-y: scroll; margin: 10px auto; background: #333; padding: 15px; border-radius: 8px; border: 2px solid #555; }
+        .pdf-page-canvas { width: 100%; height: auto; display: block; background: #fff; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
         
         .file-upload-btn { background: #2196F3; width: 100%; max-width: 300px; margin-bottom: 10px; }
+        .print-btn { background: #03a9f4; }
+        .print-btn:hover { background: #0288d1; }
+
+        /* 🔥 PRINT SETTINGS: Hides everything else, prints only the 4 pages */
+        @media print {
+            body { background: white; color: black; }
+            body * { visibility: hidden; }
+            #screen6, #screen6 * { visibility: visible; }
+            #screen6 { position: absolute; left: 0; top: 0; width: 100%; }
+            .nav-buttons, h2, p, button { display: none !important; }
+            #pdfPreviewContainer { width: 100%; max-width: 100%; height: auto; overflow: visible; background: transparent; padding: 0; border: none; margin: 0; box-shadow: none; }
+            .pdf-page-canvas { max-width: 100%; width: 210mm; margin: 0 auto; margin-bottom: 0; page-break-after: always; box-shadow: none; border: none; }
+        }
     </style>
 </head>
 <body>
@@ -92,19 +104,23 @@
         </div>
     </div>
 
-    <!-- Screen 6: Final & PDF -->
+    <!-- Screen 6: Final Multi-page PDF -->
     <div id="screen6" class="screen">
         <h2>6. Final Report Preview</h2>
-        <p style="font-size: 14px; color:#aaa;">Scroll down to see the full A4 page preview.</p>
+        <p style="font-size: 14px; color:#aaa;">Scroll down to see all 4 pages.</p>
         
-        <!-- A4 Size PDF Preview Canvas -->
         <div id="pdfPreviewContainer">
-            <canvas id="pdfCanvas" width="1190" height="1684"></canvas>
+            <canvas id="pdfPage1" class="pdf-page-canvas" width="1190" height="1684"></canvas>
+            <canvas id="pdfPage2" class="pdf-page-canvas" width="1190" height="1684"></canvas>
+            <canvas id="pdfPage3" class="pdf-page-canvas" width="1190" height="1684"></canvas>
+            <canvas id="pdfPage4" class="pdf-page-canvas" width="1190" height="1684"></canvas>
         </div>
 
         <div class="nav-buttons">
             <button onclick="nextScreen(5)">Back</button>
-            <button onclick="downloadPDF()" style="background: #ff5722;">💾 Download HD PDF</button>
+            <!-- Native Print Button Added -->
+            <button onclick="window.print()" class="print-btn">🖨️ Print / Save PDF</button>
+            <button onclick="downloadPDF()" style="background: #ff5722;">💾 Download PDF</button>
             <button onclick="nextScreen(1)">Start Over</button>
         </div>
     </div>
@@ -117,15 +133,12 @@
     let draggingPointIndex = -1;
     const CANVAS_RES = 1000; 
 
-    // Pre-load all Chakra images here
     const chakraImages = [null, new Image(), new Image(), new Image(), new Image()];
-    // MUST match your github filenames exactly
     chakraImages[1].src = "1000079054.png";
     chakraImages[2].src = "1000071649.jpg"; 
     chakraImages[3].src = "1000071166.png";
     chakraImages[4].src = "1000071166.png"; 
 
-    // Initialize all normal canvases
     for(let i=1; i<=5; i++) {
         let c = document.getElementById('canvas'+i);
         if(c) { c.width = CANVAS_RES; c.height = CANVAS_RES; }
@@ -153,7 +166,7 @@
         if (num >= 1 && num <= 5) {
             renderCanvas('canvas'+num, num - 1);
         } else if (num === 6) {
-            generatePDFPreview();
+            generateMultiPagePreview();
         }
     }
 
@@ -164,7 +177,6 @@
         }
     }
 
-    // Touch & Mouse Logic on Screen 1
     function getPointerPos(e, targetCanvas) {
         const rect = targetCanvas.getBoundingClientRect();
         let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -209,49 +221,44 @@
     function undoPoint() { points.pop(); renderCanvas('canvas1', 0); }
     function clearPoints() { points = []; renderCanvas('canvas1', 0); }
 
-    // THE MASTER DRAWING FUNCTION
     function renderCanvas(canvasId, chakraIndex) {
         const cvs = document.getElementById(canvasId);
         if(!cvs) return;
         const ctx = cvs.getContext('2d');
         ctx.clearRect(0, 0, CANVAS_RES, CANVAS_RES);
         
-        // 1. Draw Map Base
         if (mapImage) {
             ctx.globalAlpha = 0.5;
             ctx.drawImage(mapImage, 0, 0, CANVAS_RES, CANVAS_RES);
             ctx.globalAlpha = 1.0;
         }
 
-        // Calculate Center (Brahma Sthan)
         let cx = 0, cy = 0;
         if(points.length > 0) {
             points.forEach(p => { cx += p.x; cy += p.y; });
             cx /= points.length; cy /= points.length;
         }
 
-        // 2. Draw Chakra exactly on Center Point
         if(chakraIndex > 0 && points.length >= 3) {
             let img = chakraImages[chakraIndex];
             if(img && img.complete) {
-                // Find radius to cover the plot
                 let maxDist = 0;
                 points.forEach(p => {
                     let d = Math.sqrt(Math.pow(p.x - cx, 2) + Math.pow(p.y - cy, 2));
                     if(d > maxDist) maxDist = d;
                 });
-                let cSize = maxDist * 2.2; // Padding
-                if(cSize < 400) cSize = 400; // Minimum size
+                
+                let cSize = maxDist * 2.5; 
+                if(cSize < 200) cSize = 200; 
 
                 ctx.save();
-                ctx.translate(cx, cy); // Move context to Brahma Sthan
-                ctx.rotate(degree * Math.PI / 180); // Rotate by User Degree
-                ctx.drawImage(img, -cSize/2, -cSize/2, cSize, cSize); // Draw centered
+                ctx.translate(cx, cy); 
+                ctx.rotate(degree * Math.PI / 180); 
+                ctx.drawImage(img, -cSize/2, -cSize/2, cSize, cSize); 
                 ctx.restore();
             }
         }
 
-        // 3. Draw Lines and Dots
         if(points.length > 0) {
             ctx.strokeStyle = '#4caf50';
             ctx.lineWidth = 6;
@@ -277,64 +284,56 @@
         }
     }
 
-    // A4 PDF Preview Generation
-    function generatePDFPreview() {
-        const pdfCv = document.getElementById('pdfCanvas');
-        const pCtx = pdfCv.getContext('2d');
+    function generateMultiPagePreview() {
+        const titles = ["Vastu Chakra 1", "Vastu Chakra 2", "Vastu Chakra 3", "45 Vastu Devtas"];
         
-        // White Background
-        pCtx.fillStyle = '#ffffff';
-        pCtx.fillRect(0, 0, pdfCv.width, pdfCv.height);
-        
-        // Header Text
-        pCtx.fillStyle = '#000000';
-        pCtx.font = "bold 45px Arial"; pCtx.textAlign = "center";
-        pCtx.fillText("VASTU PLOT ANALYSIS", pdfCv.width/2, 80);
-        
-        pCtx.font = "30px Arial";
-        pCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", pdfCv.width/2, 130);
-        pCtx.fillText("Contact: +91 XXXXXXXXXX", pdfCv.width/2, 175);
-        
-        // Draw the 4 canvases into a 2x2 Grid on A4
-        const w = 500, h = 500; 
-        const marginX = 60, marginY = 250;
-        const gapX = 70, gapY = 150;
-        
-        const positions = [
-            {x: marginX, y: marginY, title: "Chakra 1"},
-            {x: marginX + w + gapX, y: marginY, title: "Chakra 2"},
-            {x: marginX, y: marginY + h + gapY, title: "Chakra 3"},
-            {x: marginX + w + gapX, y: marginY + h + gapY, title: "45 Devtas"}
-        ];
-
         for(let i=1; i<=4; i++) {
+            let pdfCv = document.getElementById('pdfPage'+i);
+            let pCtx = pdfCv.getContext('2d');
+            
+            pCtx.fillStyle = '#ffffff';
+            pCtx.fillRect(0, 0, pdfCv.width, pdfCv.height);
+            
+            pCtx.fillStyle = '#000000';
+            pCtx.font = "bold 45px Arial"; pCtx.textAlign = "center";
+            pCtx.fillText("VASTU PLOT ANALYSIS", pdfCv.width/2, 100);
+            pCtx.font = "30px Arial";
+            pCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", pdfCv.width/2, 155);
+            pCtx.fillText("Contact: +91 XXXXXXXXXX", pdfCv.width/2, 205);
+            
+            pCtx.fillStyle = '#d32f2f'; pCtx.font = "bold 45px Arial";
+            pCtx.fillText(titles[i-1], pdfCv.width/2, 300);
+
             let sourceCanvas = document.getElementById('canvas'+(i+1));
-            let pos = positions[i-1];
+            let w = 1000, h = 1000;
+            let startX = (pdfCv.width - w) / 2; 
+            let startY = 350; 
             
-            // Draw Title
-            pCtx.fillStyle = '#d32f2f'; pCtx.font = "bold 35px Arial"; pCtx.textAlign = "center";
-            pCtx.fillText(pos.title, pos.x + w/2, pos.y - 20);
+            pCtx.drawImage(sourceCanvas, startX, startY, w, h);
             
-            // Draw Canvas Image
-            pCtx.drawImage(sourceCanvas, pos.x, pos.y, w, h);
+            pCtx.strokeStyle = "#333"; pCtx.lineWidth = 5;
+            pCtx.strokeRect(startX, startY, w, h);
             
-            // Draw Border
-            pCtx.strokeStyle = "#333"; pCtx.lineWidth = 3;
-            pCtx.strokeRect(pos.x, pos.y, w, h);
+            pCtx.fillStyle = '#666'; pCtx.font = "25px Arial";
+            pCtx.fillText("Page " + i + " of 4", pdfCv.width/2, 1600);
         }
     }
 
     function downloadPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const pdfCanvas = document.getElementById('pdfCanvas');
-        
-        // Convert the preview canvas directly to a high-quality JPEG
-        const imgData = pdfCanvas.toDataURL('image/jpeg', 0.95);
-        
-        // Place it filling the A4 page (210x297 mm)
-        doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-        doc.save('Vastu_Report_Sai_Lohani.pdf');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            for(let i=1; i<=4; i++) {
+                if (i > 1) { doc.addPage(); } 
+                const pdfCanvas = document.getElementById('pdfPage'+i);
+                const imgData = pdfCanvas.toDataURL('image/jpeg', 0.95);
+                doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+            }
+            doc.save('Vastu_Report_Sai_Lohani.pdf');
+        } catch (error) {
+            alert("Download blocked by browser. Please use the 'Print' button instead.");
+        }
     }
 </script>
 </body>
