@@ -22,6 +22,21 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
 
+    - name: Prepare Web Directory (Fixing webDir Error)
+      run: |
+        mkdir -p www
+        cp index.html www/
+        cp *.png www/ || true
+        cp *.jpg www/ || true
+
+    - name: Fix Capacitor Config
+      run: |
+        echo '{
+          "appId": "com.sailohani.vastuapp",
+          "appName": "VastuAnalyzer",
+          "webDir": "www"
+        }' > capacitor.config.json
+
     - name: Install Dependencies
       run: npm install
 
