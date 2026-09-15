@@ -22,7 +22,7 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
 
-    - name: Prepare Web Directory (Fixing webDir Error)
+    - name: Prepare Web Directory
       run: |
         mkdir -p www
         cp index.html www/
@@ -37,11 +37,12 @@ jobs:
           "webDir": "www"
         }' > capacitor.config.json
 
-    - name: Install Dependencies (Fixed 404 Error)
+    - name: Clean and Install Fresh Dependencies
       run: |
+        rm -f package.json package-lock.json
         npm init -y
-        npm install @capacitor/core@latest @capacitor/android@latest
-        npm install -D @capacitor/cli@latest
+        npm install @capacitor/core@5 @capacitor/android@5
+        npm install -D @capacitor/cli@5
 
     - name: Add Android Platform
       run: npx cap add android
