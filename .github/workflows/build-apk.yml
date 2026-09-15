@@ -14,7 +14,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -37,8 +37,11 @@ jobs:
           "webDir": "www"
         }' > capacitor.config.json
 
-    - name: Install Dependencies
-      run: npm install
+    - name: Install Dependencies (Fixed 404 Error)
+      run: |
+        npm init -y
+        npm install @capacitor/core@latest @capacitor/android@latest
+        npm install -D @capacitor/cli@latest
 
     - name: Add Android Platform
       run: npx cap add android
