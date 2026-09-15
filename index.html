@@ -2,41 +2,56 @@
 <html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vastu Plot Analyzer - Sai Lohani</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; }
-        .screen { display: none; padding: 20px; text-align: center; }
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
+        .screen { display: none; padding: 10px; text-align: center; }
         .active { display: block; }
-        canvas { background: #222; border: 2px dashed #4caf50; touch-action: none; margin: 10px auto; max-width: 100%; display: block; }
-        input, button { padding: 10px; margin: 5px; font-size: 14px; border-radius: 5px; border: none; }
+        
+        /* Canvas ko responsive banaya gaya hai */
+        .canvas-container { width: 95vw; height: 95vw; max-width: 600px; max-height: 600px; margin: 10px auto; position: relative; border: 2px dashed #4caf50; background: #222; }
+        canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+        
+        input, button { padding: 12px; margin: 5px; font-size: 16px; border-radius: 5px; border: none; }
+        input[type="number"] { width: 80px; text-align: center; }
         button { background: #4caf50; color: white; cursor: pointer; font-weight: bold; }
         button:hover { background: #45a049; }
-        .nav-buttons { margin-top: 20px; }
+        .nav-buttons { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
         .branding { margin-top: 15px; font-size: 16px; color: #ccc; }
-        .chakra-container { position: relative; width: 300px; height: 300px; margin: 20px auto; border: 1px solid #333; overflow: hidden; background: #000; }
-        .chakra-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: transform 0.3s; object-fit: contain; }
-        .plot-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        .chakra-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
+        /* Chakra image object-fit contain se cover ki gayi hai takki pura canvas bhare */
+        .chakra-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: transform 0.3s; object-fit: contain; z-index: 1; pointer-events: none; }
+        .plot-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+        
         .pdf-page { background: white; color: black; padding: 20px; text-align: center; margin-bottom: 20px; width: 210mm; min-height: 297mm; box-sizing: border-box; }
         #pdf-content { display: none; background: #ccc; padding: 20px; }
-        .file-upload-btn { background: #2196F3; }
+        .file-upload-btn { background: #2196F3; width: 100%; max-width: 300px; margin-bottom: 10px; }
         .file-upload-btn:hover { background: #0b7dda; }
     </style>
 </head>
 <body>
 
-    <!-- Screen 1: Plot & Degree -->
+    <!-- Screen 1: Plot & Degree Setup -->
     <div id="screen1" class="screen active">
         <h2>1. Plot & Degree Setup</h2>
         
-        <!-- Map Upload Feature -->
         <input type="file" id="mapUpload" accept="image/*" style="display:none;" onchange="loadMap(event)">
-        <button class="file-upload-btn" onclick="document.getElementById('mapUpload').click()">🖼️ Upload Map</button>
+        <button class="file-upload-btn" onclick="document.getElementById('mapUpload').click()">🖼️ Upload Map from Gallery</button>
         
-        <p>Dot lagane ke liye tap karein. Galat lage toh pakad kar khiskayein (Drag karein).</p>
-        <input type="number" id="plotDegree" placeholder="Plot Degree (e.g., 45)" value="0" onchange="updateDegree()">
-        <canvas id="plotCanvas" width="300" height="300"></canvas>
+        <p style="font-size: 14px; margin: 5px 0;">Tap to add dot. Drag to move.</p>
+        
+        <div>
+            <label for="plotDegree">Plot Degree:</label>
+            <input type="number" id="plotDegree" placeholder="Deg" value="0" onchange="updateDegree()">
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="plotCanvas"></canvas>
+        </div>
+        
         <div class="nav-buttons">
             <button onclick="undoPoint()">Undo Dot</button>
             <button onclick="clearPoints()">Clear All</button>
@@ -47,9 +62,10 @@
     <!-- Screen 2: Chakra 1 -->
     <div id="screen2" class="screen">
         <h2>2. Vastu Chakra 1</h2>
-        <div class="chakra-container">
-            <img src="1000079054.png" class="chakra-img" id="cimg1" alt="Chakra 1">
-            <canvas class="plot-overlay" id="overlay1" width="300" height="300"></canvas>
+        <div class="canvas-container">
+            <!-- Verify image name matches your GitHub repo exactly -->
+            <img src="1000079054.png" class="chakra-img" id="cimg1" alt="Chakra 1" onerror="this.style.display='none'">
+            <canvas class="plot-overlay" id="overlay1"></canvas>
         </div>
         <div class="nav-buttons">
             <button onclick="nextScreen(1)">Back</button>
@@ -60,9 +76,10 @@
     <!-- Screen 3: Chakra 2 -->
     <div id="screen3" class="screen">
         <h2>3. Vastu Chakra 2</h2>
-        <div class="chakra-container">
-            <img src="1000071649.jpg" class="chakra-img" id="cimg2" alt="Chakra 2">
-            <canvas class="plot-overlay" id="overlay2" width="300" height="300"></canvas>
+        <div class="canvas-container">
+            <!-- Verify image name matches your GitHub repo exactly -->
+            <img src="1000071649.jpg" class="chakra-img" id="cimg2" alt="Chakra 2" onerror="this.style.display='none'">
+            <canvas class="plot-overlay" id="overlay2"></canvas>
         </div>
         <div class="nav-buttons">
             <button onclick="nextScreen(2)">Back</button>
@@ -73,9 +90,10 @@
     <!-- Screen 4: Chakra 3 -->
     <div id="screen4" class="screen">
         <h2>4. Vastu Chakra 3</h2>
-        <div class="chakra-container">
-            <img src="1000071166.png" class="chakra-img" id="cimg3" alt="Chakra 3">
-            <canvas class="plot-overlay" id="overlay3" width="300" height="300"></canvas>
+        <div class="canvas-container">
+            <!-- Verify image name matches your GitHub repo exactly -->
+            <img src="1000071166.png" class="chakra-img" id="cimg3" alt="Chakra 3" onerror="this.style.display='none'">
+            <canvas class="plot-overlay" id="overlay3"></canvas>
         </div>
         <div class="nav-buttons">
             <button onclick="nextScreen(3)">Back</button>
@@ -86,9 +104,10 @@
     <!-- Screen 5: 45 Devtas -->
     <div id="screen5" class="screen">
         <h2>5. 45 Vastu Devtas</h2>
-        <div class="chakra-container">
-            <img src="1000071166.png" class="chakra-img" id="cimg4" alt="45 Devtas">
-            <canvas class="plot-overlay" id="overlay4" width="300" height="300"></canvas>
+        <div class="canvas-container">
+            <!-- Assuming Devta uses the third image, adjust if you have a specific 4th image -->
+            <img src="1000071166.png" class="chakra-img" id="cimg4" alt="45 Devtas" onerror="this.style.display='none'">
+            <canvas class="plot-overlay" id="overlay4"></canvas>
         </div>
         <div class="nav-buttons">
             <button onclick="nextScreen(4)">Back</button>
@@ -101,11 +120,10 @@
         <h2>6. Final Report (HD PDF)</h2>
         <div class="branding">
             <p><strong>Consultant:</strong> Sai Lohani</p>
-            <p><strong>Contact:</strong> Update Number Here</p>
+            <p><strong>Contact:</strong> +91 XXXXXXXXXX</p>
         </div>
         <div class="nav-buttons">
             <button onclick="generatePDF()">Download HD PDF</button>
-            <br><br>
             <button onclick="nextScreen(1)">Start Over</button>
         </div>
     </div>
@@ -125,16 +143,31 @@
     let points = [];
     let degree = 0;
     let mapImage = null; 
-    let draggingPointIndex = -1; // New: Kaun sa dot drag ho raha hai track karne ke liye
-    const DRAG_RADIUS = 20; // New: Touch karne ka area
+    let draggingPointIndex = -1;
+    const DRAG_RADIUS = 30; // Touch area badha diya mobile ke liye
+    
+    // Virtual Canvas Size (Internal resolution for HD drawing)
+    const CANVAS_RES = 1000; 
 
     const canvas = document.getElementById('plotCanvas');
     const ctx = canvas.getContext('2d');
 
+    // Resize canvasses internally while keeping CSS size
+    function initCanvases() {
+        const canvases = [canvas, document.getElementById('overlay1'), document.getElementById('overlay2'), document.getElementById('overlay3'), document.getElementById('overlay4')];
+        canvases.forEach(c => {
+            if(c) {
+                c.width = CANVAS_RES;
+                c.height = CANVAS_RES;
+            }
+        });
+    }
+    
+    initCanvases();
+
     function loadMap(event) {
         const file = event.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = function(e) {
             mapImage = new Image();
@@ -162,33 +195,39 @@
         }
     }
 
-    // New Drag & Drop Logic Start
-    function getPointerPos(e) {
-        const rect = canvas.getBoundingClientRect();
+    // Convert screen coordinates to internal canvas resolution coordinates
+    function getPointerPos(e, targetCanvas) {
+        const rect = targetCanvas.getBoundingClientRect();
         let clientX = e.touches ? e.touches[0].clientX : e.clientX;
         let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
+        
+        let scaleX = targetCanvas.width / rect.width;
+        let scaleY = targetCanvas.height / rect.height;
+
+        return { 
+            x: (clientX - rect.left) * scaleX, 
+            y: (clientY - rect.top) * scaleY 
+        };
     }
 
     function handleStart(e) {
         e.preventDefault();
-        const pos = getPointerPos(e);
+        const pos = getPointerPos(e, canvas);
         draggingPointIndex = -1;
         
-        // Check if touched near an existing dot
         for (let i = 0; i < points.length; i++) {
             const dx = pos.x - points[i].x;
             const dy = pos.y - points[i].y;
-            if (Math.sqrt(dx * dx + dy * dy) < DRAG_RADIUS) {
-                draggingPointIndex = i; // Agar dot pakda, to naya mat banao
+            // Scale drag radius to internal resolution
+            if (Math.sqrt(dx * dx + dy * dy) < (DRAG_RADIUS * (CANVAS_RES/300))) {
+                draggingPointIndex = i;
                 break;
             }
         }
         
-        // Agar dot ke upar touch nahi kiya, to naya dot banao
         if (draggingPointIndex === -1) {
             points.push({x: pos.x, y: pos.y});
-            draggingPointIndex = points.length - 1; // naye dot ko turant drag kar sako
+            draggingPointIndex = points.length - 1;
         }
         drawPlot(ctx);
     }
@@ -196,41 +235,37 @@
     function handleMove(e) {
         if (draggingPointIndex !== -1) {
             e.preventDefault();
-            const pos = getPointerPos(e);
-            points[draggingPointIndex] = {x: pos.x, y: pos.y}; // Dot ki position update karo
+            const pos = getPointerPos(e, canvas);
+            points[draggingPointIndex] = {x: pos.x, y: pos.y};
             drawPlot(ctx);
         }
     }
 
-    function handleEnd(e) {
-        draggingPointIndex = -1; // Upar uli uthane par drag band
-    }
+    function handleEnd(e) { draggingPointIndex = -1; }
 
-    // Mouse Events (PC ke liye)
     canvas.addEventListener('mousedown', handleStart);
     canvas.addEventListener('mousemove', handleMove);
     canvas.addEventListener('mouseup', handleEnd);
     canvas.addEventListener('mouseleave', handleEnd);
 
-    // Touch Events (Mobile ke liye)
     canvas.addEventListener('touchstart', handleStart, {passive: false});
     canvas.addEventListener('touchmove', handleMove, {passive: false});
     canvas.addEventListener('touchend', handleEnd);
-    // New Drag & Drop Logic End
 
     function drawPlot(context) {
-        context.clearRect(0, 0, 300, 300);
+        context.clearRect(0, 0, CANVAS_RES, CANVAS_RES);
         
         if (mapImage) {
             context.globalAlpha = 0.5; 
-            context.drawImage(mapImage, 0, 0, 300, 300);
+            // Draw map covering the internal canvas
+            context.drawImage(mapImage, 0, 0, CANVAS_RES, CANVAS_RES);
             context.globalAlpha = 1.0;
         }
 
         if(points.length === 0) return;
         
         context.strokeStyle = '#4caf50';
-        context.lineWidth = 2;
+        context.lineWidth = 6; // Thicker lines for higher resolution
         context.beginPath();
         context.moveTo(points[0].x, points[0].y);
         points.forEach(p => context.lineTo(p.x, p.y));
@@ -240,15 +275,20 @@
         let cx = 0, cy = 0;
         points.forEach((p, i) => {
             context.fillStyle = '#ff5722';
-            context.beginPath(); context.arc(p.x, p.y, 6, 0, Math.PI*2); context.fill(); // Dot thoda bada kiya
+            context.beginPath(); context.arc(p.x, p.y, 15, 0, Math.PI*2); context.fill(); 
             cx += p.x; cy += p.y;
+            // Draw Point number
+            context.fillStyle = '#fff';
+            context.font = "20px Arial";
+            context.fillText("P"+(i+1), p.x + 20, p.y - 20);
         });
 
         if (points.length >= 3) {
             cx /= points.length; cy /= points.length;
             context.fillStyle = '#00bcd4';
-            context.beginPath(); context.arc(cx, cy, 6, 0, Math.PI*2); context.fill();
-            context.fillText('Brahma Sthan', cx+10, cy);
+            context.beginPath(); context.arc(cx, cy, 15, 0, Math.PI*2); context.fill();
+            context.font = "30px Arial";
+            context.fillText('Brahma Sthan', cx+20, cy);
         }
     }
 
