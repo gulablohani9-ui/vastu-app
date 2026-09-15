@@ -10,47 +10,48 @@
         .screen { display: none; padding: 10px; text-align: center; }
         .active { display: block; }
         
-        .canvas-container { width: 95vw; height: 95vw; max-width: 500px; max-height: 500px; margin: 10px auto; position: relative; border: 2px dashed #4caf50; background: #222; }
-        canvas.view-canvas { width: 100%; height: 100%; display: block; touch-action: none; background: #000; }
+        /* 🔥 Bada Canvas - Screen ke hisab se full fit hoga */
+        .canvas-container { width: 98vw; height: 98vw; max-width: 800px; max-height: 800px; margin: 10px auto; position: relative; border: 2px solid #4caf50; background: #1a1a1a; border-radius: 8px; }
+        canvas.view-canvas { width: 100%; height: 100%; display: block; touch-action: none; background: transparent; }
         
-        input, button { padding: 12px; margin: 5px; font-size: 16px; border-radius: 5px; border: none; }
-        input[type="number"] { width: 80px; text-align: center; }
-        button { background: #4caf50; color: white; cursor: pointer; font-weight: bold; }
+        input, button { padding: 12px; margin: 5px; font-size: 16px; border-radius: 8px; border: none; font-weight: bold; }
+        input[type="number"] { width: 100px; text-align: center; font-size: 18px; }
+        button { background: #4caf50; color: white; cursor: pointer; }
         button:hover { background: #45a049; }
         .nav-buttons { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        
+        /* 🔥 Naya Controls Card - Size aur Rotation ke liye */
+        .controls-card { background: #2c2c2c; padding: 12px; margin: 10px auto; border-radius: 10px; max-width: 95vw; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .controls-card label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; color: #ffeb3b; font-weight: bold; }
+        .controls-card input[type="range"] { width: 100%; margin-bottom: 12px; height: 8px; background: #555; outline: none; border-radius: 5px; }
         
         /* PDF Preview Area */
         #pdfPreviewContainer { width: 100%; max-width: 600px; height: 500px; overflow-y: scroll; margin: 10px auto; background: #333; padding: 15px; border-radius: 8px; border: 2px solid #555; }
         .pdf-page-canvas { width: 100%; height: auto; display: block; background: #fff; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
         
-        .file-upload-btn { background: #2196F3; width: 100%; max-width: 300px; margin-bottom: 10px; }
+        .top-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        .file-upload-btn { background: #2196F3; flex: 1; min-width: 140px; }
+        .fullscreen-btn { background: #673ab7; flex: 1; min-width: 140px; }
         .print-btn { background: #03a9f4; }
-        .print-btn:hover { background: #0288d1; }
-
-        /* 🔥 PRINT SETTINGS: Hides everything else, prints only the 4 pages */
-        @media print {
-            body { background: white; color: black; }
-            body * { visibility: hidden; }
-            #screen6, #screen6 * { visibility: visible; }
-            #screen6 { position: absolute; left: 0; top: 0; width: 100%; }
-            .nav-buttons, h2, p, button { display: none !important; }
-            #pdfPreviewContainer { width: 100%; max-width: 100%; height: auto; overflow: visible; background: transparent; padding: 0; border: none; margin: 0; box-shadow: none; }
-            .pdf-page-canvas { max-width: 100%; width: 210mm; margin: 0 auto; margin-bottom: 0; page-break-after: always; box-shadow: none; border: none; }
-        }
     </style>
 </head>
 <body>
 
     <!-- Screen 1: Plot Setup -->
     <div id="screen1" class="screen active">
-        <h2>1. Plot & Degree Setup</h2>
-        <input type="file" id="mapUpload" accept="image/*" style="display:none;" onchange="loadMap(event)">
-        <button class="file-upload-btn" onclick="document.getElementById('mapUpload').click()">🖼️ Upload Map from Gallery</button>
-        <p style="font-size: 14px;">Tap to add dot. Drag to move.</p>
+        <h2 style="margin-top: 5px;">1. Plot & Map Setup</h2>
         
-        <div>
-            <label>Plot Degree:</label>
-            <input type="number" id="plotDegree" placeholder="Deg" value="0" onchange="updateDegree()">
+        <div class="top-actions">
+            <input type="file" id="mapUpload" accept="image/*" style="display:none;" onchange="loadMap(event)">
+            <button class="file-upload-btn" onclick="document.getElementById('mapUpload').click()">🖼️ Upload Map</button>
+            <button class="fullscreen-btn" onclick="toggleFullScreen()">📱 Full Screen</button>
+        </div>
+        
+        <p style="font-size: 14px; margin: 5px; color:#aaa;">Tap to place point. Drag to adjust.</p>
+        
+        <div style="margin: 10px 0;">
+            <label style="font-size: 18px; font-weight: bold;">Plot Degree: </label>
+            <input type="number" id="plotDegree" placeholder="Deg" value="0" oninput="setDegree(this.value)">
         </div>
         
         <div class="canvas-container">
@@ -58,49 +59,77 @@
         </div>
         
         <div class="nav-buttons">
-            <button onclick="undoPoint()">Undo Dot</button>
-            <button onclick="clearPoints()">Clear All</button>
-            <button onclick="nextScreen(2)">Next: Chakra 1</button>
+            <button onclick="undoPoint()" style="background:#e91e63;">↩ Undo Dot</button>
+            <button onclick="clearPoints()" style="background:#f44336;">🗑️ Clear All</button>
+            <button onclick="nextScreen(2)" style="background:#4caf50;">Next: Chakra 1 ➡</button>
         </div>
     </div>
 
     <!-- Screen 2: Chakra 1 -->
     <div id="screen2" class="screen">
         <h2>2. Vastu Chakra 1</h2>
+        <div class="controls-card">
+            <label><span>🔍 Chakra Size (Zoom):</span></label>
+            <input type="range" min="0.2" max="5" step="0.1" value="1" oninput="updateScale(1, this.value)">
+            
+            <label><span>🔄 Rotate Chakra:</span> <span id="degVal2">0°</span></label>
+            <input type="range" id="degSlider2" min="0" max="360" step="1" value="0" oninput="setDegree(this.value)">
+        </div>
         <div class="canvas-container"><canvas id="canvas2" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
-            <button onclick="nextScreen(1)">Back</button>
-            <button onclick="nextScreen(3)">Next</button>
+            <button onclick="nextScreen(1)">⬅ Back</button>
+            <button onclick="nextScreen(3)">Next ➡</button>
         </div>
     </div>
 
     <!-- Screen 3: Chakra 2 -->
     <div id="screen3" class="screen">
         <h2>3. Vastu Chakra 2</h2>
+        <div class="controls-card">
+            <label><span>🔍 Chakra Size (Zoom):</span></label>
+            <input type="range" min="0.2" max="5" step="0.1" value="1" oninput="updateScale(2, this.value)">
+            
+            <label><span>🔄 Rotate Chakra:</span> <span id="degVal3">0°</span></label>
+            <input type="range" id="degSlider3" min="0" max="360" step="1" value="0" oninput="setDegree(this.value)">
+        </div>
         <div class="canvas-container"><canvas id="canvas3" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
-            <button onclick="nextScreen(2)">Back</button>
-            <button onclick="nextScreen(4)">Next</button>
+            <button onclick="nextScreen(2)">⬅ Back</button>
+            <button onclick="nextScreen(4)">Next ➡</button>
         </div>
     </div>
 
-    <!-- Screen 4: Chakra 3 -->
+    <!-- Screen 4: Chakra 3 (Compass) -->
     <div id="screen4" class="screen">
         <h2>4. Vastu Chakra 3</h2>
+        <div class="controls-card">
+            <label><span>🔍 Chakra Size (Zoom):</span></label>
+            <input type="range" min="0.2" max="5" step="0.1" value="1" oninput="updateScale(3, this.value)">
+            
+            <label><span>🔄 Rotate Chakra:</span> <span id="degVal4">0°</span></label>
+            <input type="range" id="degSlider4" min="0" max="360" step="1" value="0" oninput="setDegree(this.value)">
+        </div>
         <div class="canvas-container"><canvas id="canvas4" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
-            <button onclick="nextScreen(3)">Back</button>
-            <button onclick="nextScreen(5)">Next</button>
+            <button onclick="nextScreen(3)">⬅ Back</button>
+            <button onclick="nextScreen(5)">Next ➡</button>
         </div>
     </div>
 
     <!-- Screen 5: 45 Devtas -->
     <div id="screen5" class="screen">
         <h2>5. 45 Vastu Devtas</h2>
+        <div class="controls-card">
+            <label><span>🔍 Chakra Size (Zoom):</span></label>
+            <input type="range" min="0.2" max="5" step="0.1" value="1" oninput="updateScale(4, this.value)">
+            
+            <label><span>🔄 Rotate Chakra:</span> <span id="degVal5">0°</span></label>
+            <input type="range" id="degSlider5" min="0" max="360" step="1" value="0" oninput="setDegree(this.value)">
+        </div>
         <div class="canvas-container"><canvas id="canvas5" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
-            <button onclick="nextScreen(4)">Back</button>
-            <button onclick="nextScreen(6)">Next: PDF Preview</button>
+            <button onclick="nextScreen(4)">⬅ Back</button>
+            <button onclick="nextScreen(6)">Final PDF ➡</button>
         </div>
     </div>
 
@@ -117,11 +146,10 @@
         </div>
 
         <div class="nav-buttons">
-            <button onclick="nextScreen(5)">Back</button>
-            <!-- Native Print Button Added -->
+            <button onclick="nextScreen(5)">⬅ Back</button>
             <button onclick="window.print()" class="print-btn">🖨️ Print / Save PDF</button>
             <button onclick="downloadPDF()" style="background: #ff5722;">💾 Download PDF</button>
-            <button onclick="nextScreen(1)">Start Over</button>
+            <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
         </div>
     </div>
 
@@ -132,6 +160,7 @@
     let mapImage = null; 
     let draggingPointIndex = -1;
     const CANVAS_RES = 1000; 
+    let chakraScales = [1, 1, 1, 1, 1]; 
 
     const chakraImages = [null, new Image(), new Image(), new Image(), new Image()];
     chakraImages[1].src = "1000079054.png";
@@ -143,8 +172,37 @@
         let c = document.getElementById('canvas'+i);
         if(c) { c.width = CANVAS_RES; c.height = CANVAS_RES; }
     }
-
     const c1 = document.getElementById('canvas1');
+
+    // 🔥 Full Screen Feature
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                alert(`Error: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    // 🔥 Master Degree Sync Feature (Sabhi Slider Sync Honge)
+    function setDegree(val) {
+        if (val === "") val = 0;
+        degree = parseInt(val);
+        
+        document.getElementById('plotDegree').value = degree;
+        
+        for(let i=2; i<=5; i++) {
+            let slider = document.getElementById('degSlider'+i);
+            let text = document.getElementById('degVal'+i);
+            if(slider && slider.value != degree) slider.value = degree;
+            if(text) text.innerText = degree + "°";
+        }
+        
+        if(currentScreen >= 1 && currentScreen <= 5) {
+            renderCanvas('canvas'+currentScreen, currentScreen - 1);
+        }
+    }
 
     function loadMap(event) {
         const file = event.target.files[0];
@@ -170,13 +228,12 @@
         }
     }
 
-    function updateDegree() {
-        degree = document.getElementById('plotDegree').value || 0;
-        if(currentScreen >= 1 && currentScreen <= 5) {
-            renderCanvas('canvas'+currentScreen, currentScreen - 1);
-        }
+    function updateScale(chakraIndex, val) {
+        chakraScales[chakraIndex] = parseFloat(val);
+        renderCanvas('canvas' + (chakraIndex + 1), chakraIndex);
     }
 
+    // Drag & Drop Touch Logic
     function getPointerPos(e, targetCanvas) {
         const rect = targetCanvas.getBoundingClientRect();
         let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -251,6 +308,9 @@
                 let cSize = maxDist * 2.5; 
                 if(cSize < 200) cSize = 200; 
 
+                let customScale = chakraScales[chakraIndex] || 1;
+                cSize = cSize * customScale;
+
                 ctx.save();
                 ctx.translate(cx, cy); 
                 ctx.rotate(degree * Math.PI / 180); 
@@ -286,16 +346,13 @@
 
     function generateMultiPagePreview() {
         const titles = ["Vastu Chakra 1", "Vastu Chakra 2", "Vastu Chakra 3", "45 Vastu Devtas"];
-        
         for(let i=1; i<=4; i++) {
             let pdfCv = document.getElementById('pdfPage'+i);
             let pCtx = pdfCv.getContext('2d');
             
-            pCtx.fillStyle = '#ffffff';
-            pCtx.fillRect(0, 0, pdfCv.width, pdfCv.height);
+            pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pdfCv.width, pdfCv.height);
             
-            pCtx.fillStyle = '#000000';
-            pCtx.font = "bold 45px Arial"; pCtx.textAlign = "center";
+            pCtx.fillStyle = '#000000'; pCtx.font = "bold 45px Arial"; pCtx.textAlign = "center";
             pCtx.fillText("VASTU PLOT ANALYSIS", pdfCv.width/2, 100);
             pCtx.font = "30px Arial";
             pCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", pdfCv.width/2, 155);
@@ -310,9 +367,7 @@
             let startY = 350; 
             
             pCtx.drawImage(sourceCanvas, startX, startY, w, h);
-            
-            pCtx.strokeStyle = "#333"; pCtx.lineWidth = 5;
-            pCtx.strokeRect(startX, startY, w, h);
+            pCtx.strokeStyle = "#333"; pCtx.lineWidth = 5; pCtx.strokeRect(startX, startY, w, h);
             
             pCtx.fillStyle = '#666'; pCtx.font = "25px Arial";
             pCtx.fillText("Page " + i + " of 4", pdfCv.width/2, 1600);
@@ -323,7 +378,6 @@
         try {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
-            
             for(let i=1; i<=4; i++) {
                 if (i > 1) { doc.addPage(); } 
                 const pdfCanvas = document.getElementById('pdfPage'+i);
