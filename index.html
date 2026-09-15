@@ -4,52 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vastu Plot Analyzer - Sai Lohani</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- jsPDF library for 100% guaranteed PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
         .screen { display: none; padding: 10px; text-align: center; }
         .active { display: block; }
         
-        /* Canvas ko responsive banaya gaya hai */
-        .canvas-container { width: 95vw; height: 95vw; max-width: 600px; max-height: 600px; margin: 10px auto; position: relative; border: 2px dashed #4caf50; background: #222; }
-        canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+        .canvas-container { width: 95vw; height: 95vw; max-width: 500px; max-height: 500px; margin: 10px auto; position: relative; border: 2px dashed #4caf50; background: #222; }
+        canvas.view-canvas { width: 100%; height: 100%; display: block; touch-action: none; background: #000; }
         
         input, button { padding: 12px; margin: 5px; font-size: 16px; border-radius: 5px; border: none; }
         input[type="number"] { width: 80px; text-align: center; }
         button { background: #4caf50; color: white; cursor: pointer; font-weight: bold; }
         button:hover { background: #45a049; }
         .nav-buttons { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        .branding { margin-top: 15px; font-size: 16px; color: #ccc; }
         
-        .chakra-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
-        /* Chakra image object-fit contain se cover ki gayi hai takki pura canvas bhare */
-        .chakra-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: transform 0.3s; object-fit: contain; z-index: 1; pointer-events: none; }
-        .plot-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+        /* PDF Preview Area */
+        #pdfPreviewContainer { width: 100%; max-width: 600px; height: 400px; overflow-y: scroll; margin: 10px auto; border: 2px solid #fff; background: #e0e0e0; }
+        #pdfCanvas { width: 100%; height: auto; display: block; background: #fff; }
         
-        .pdf-page { background: white; color: black; padding: 20px; text-align: center; margin-bottom: 20px; width: 210mm; min-height: 297mm; box-sizing: border-box; }
-        #pdf-content { display: none; background: #ccc; padding: 20px; }
         .file-upload-btn { background: #2196F3; width: 100%; max-width: 300px; margin-bottom: 10px; }
-        .file-upload-btn:hover { background: #0b7dda; }
     </style>
 </head>
 <body>
 
-    <!-- Screen 1: Plot & Degree Setup -->
+    <!-- Screen 1: Plot Setup -->
     <div id="screen1" class="screen active">
         <h2>1. Plot & Degree Setup</h2>
-        
         <input type="file" id="mapUpload" accept="image/*" style="display:none;" onchange="loadMap(event)">
         <button class="file-upload-btn" onclick="document.getElementById('mapUpload').click()">🖼️ Upload Map from Gallery</button>
-        
-        <p style="font-size: 14px; margin: 5px 0;">Tap to add dot. Drag to move.</p>
+        <p style="font-size: 14px;">Tap to add dot. Drag to move.</p>
         
         <div>
-            <label for="plotDegree">Plot Degree:</label>
+            <label>Plot Degree:</label>
             <input type="number" id="plotDegree" placeholder="Deg" value="0" onchange="updateDegree()">
         </div>
         
         <div class="canvas-container">
-            <canvas id="plotCanvas"></canvas>
+            <canvas id="canvas1" class="view-canvas"></canvas>
         </div>
         
         <div class="nav-buttons">
@@ -62,11 +55,7 @@
     <!-- Screen 2: Chakra 1 -->
     <div id="screen2" class="screen">
         <h2>2. Vastu Chakra 1</h2>
-        <div class="canvas-container">
-            <!-- Verify image name matches your GitHub repo exactly -->
-            <img src="1000079054.png" class="chakra-img" id="cimg1" alt="Chakra 1" onerror="this.style.display='none'">
-            <canvas class="plot-overlay" id="overlay1"></canvas>
-        </div>
+        <div class="canvas-container"><canvas id="canvas2" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
             <button onclick="nextScreen(1)">Back</button>
             <button onclick="nextScreen(3)">Next</button>
@@ -76,11 +65,7 @@
     <!-- Screen 3: Chakra 2 -->
     <div id="screen3" class="screen">
         <h2>3. Vastu Chakra 2</h2>
-        <div class="canvas-container">
-            <!-- Verify image name matches your GitHub repo exactly -->
-            <img src="1000071649.jpg" class="chakra-img" id="cimg2" alt="Chakra 2" onerror="this.style.display='none'">
-            <canvas class="plot-overlay" id="overlay2"></canvas>
-        </div>
+        <div class="canvas-container"><canvas id="canvas3" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
             <button onclick="nextScreen(2)">Back</button>
             <button onclick="nextScreen(4)">Next</button>
@@ -90,11 +75,7 @@
     <!-- Screen 4: Chakra 3 -->
     <div id="screen4" class="screen">
         <h2>4. Vastu Chakra 3</h2>
-        <div class="canvas-container">
-            <!-- Verify image name matches your GitHub repo exactly -->
-            <img src="1000071166.png" class="chakra-img" id="cimg3" alt="Chakra 3" onerror="this.style.display='none'">
-            <canvas class="plot-overlay" id="overlay3"></canvas>
-        </div>
+        <div class="canvas-container"><canvas id="canvas4" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
             <button onclick="nextScreen(3)">Back</button>
             <button onclick="nextScreen(5)">Next</button>
@@ -104,37 +85,27 @@
     <!-- Screen 5: 45 Devtas -->
     <div id="screen5" class="screen">
         <h2>5. 45 Vastu Devtas</h2>
-        <div class="canvas-container">
-            <!-- Assuming Devta uses the third image, adjust if you have a specific 4th image -->
-            <img src="1000071166.png" class="chakra-img" id="cimg4" alt="45 Devtas" onerror="this.style.display='none'">
-            <canvas class="plot-overlay" id="overlay4"></canvas>
-        </div>
+        <div class="canvas-container"><canvas id="canvas5" class="view-canvas"></canvas></div>
         <div class="nav-buttons">
             <button onclick="nextScreen(4)">Back</button>
-            <button onclick="nextScreen(6)">Next: PDF Generation</button>
+            <button onclick="nextScreen(6)">Next: PDF Preview</button>
         </div>
     </div>
 
     <!-- Screen 6: Final & PDF -->
     <div id="screen6" class="screen">
-        <h2>6. Final Report (HD PDF)</h2>
-        <div class="branding">
-            <p><strong>Consultant:</strong> Sai Lohani</p>
-            <p><strong>Contact:</strong> +91 XXXXXXXXXX</p>
+        <h2>6. Final Report Preview</h2>
+        <p style="font-size: 14px; color:#aaa;">Scroll down to see the full A4 page preview.</p>
+        
+        <!-- A4 Size PDF Preview Canvas -->
+        <div id="pdfPreviewContainer">
+            <canvas id="pdfCanvas" width="1190" height="1684"></canvas>
         </div>
-        <div class="nav-buttons">
-            <button onclick="generatePDF()">Download HD PDF</button>
-            <button onclick="nextScreen(1)">Start Over</button>
-        </div>
-    </div>
 
-    <!-- Hidden PDF Content -->
-    <div id="pdf-content">
-        <div class="pdf-page" id="pdf-page-content">
-            <h1>Vastu Plot Analysis</h1>
-            <h3>Consultant: Sai Lohani</h3>
-            <p id="pdf-degree-text"></p>
-            <div id="pdf-images"></div>
+        <div class="nav-buttons">
+            <button onclick="nextScreen(5)">Back</button>
+            <button onclick="downloadPDF()" style="background: #ff5722;">💾 Download HD PDF</button>
+            <button onclick="nextScreen(1)">Start Over</button>
         </div>
     </div>
 
@@ -144,26 +115,23 @@
     let degree = 0;
     let mapImage = null; 
     let draggingPointIndex = -1;
-    const DRAG_RADIUS = 30; // Touch area badha diya mobile ke liye
-    
-    // Virtual Canvas Size (Internal resolution for HD drawing)
     const CANVAS_RES = 1000; 
 
-    const canvas = document.getElementById('plotCanvas');
-    const ctx = canvas.getContext('2d');
+    // Pre-load all Chakra images here
+    const chakraImages = [null, new Image(), new Image(), new Image(), new Image()];
+    // MUST match your github filenames exactly
+    chakraImages[1].src = "1000079054.png";
+    chakraImages[2].src = "1000071649.jpg"; 
+    chakraImages[3].src = "1000071166.png";
+    chakraImages[4].src = "1000071166.png"; 
 
-    // Resize canvasses internally while keeping CSS size
-    function initCanvases() {
-        const canvases = [canvas, document.getElementById('overlay1'), document.getElementById('overlay2'), document.getElementById('overlay3'), document.getElementById('overlay4')];
-        canvases.forEach(c => {
-            if(c) {
-                c.width = CANVAS_RES;
-                c.height = CANVAS_RES;
-            }
-        });
+    // Initialize all normal canvases
+    for(let i=1; i<=5; i++) {
+        let c = document.getElementById('canvas'+i);
+        if(c) { c.width = CANVAS_RES; c.height = CANVAS_RES; }
     }
-    
-    initCanvases();
+
+    const c1 = document.getElementById('canvas1');
 
     function loadMap(event) {
         const file = event.target.files[0];
@@ -171,7 +139,7 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             mapImage = new Image();
-            mapImage.onload = function() { drawPlot(ctx); }
+            mapImage.onload = function() { renderCanvas('canvas1', 0); }
             mapImage.src = e.target.result;
         }
         reader.readAsDataURL(file);
@@ -181,140 +149,192 @@
         document.getElementById('screen'+currentScreen).classList.remove('active');
         currentScreen = num;
         document.getElementById('screen'+currentScreen).classList.add('active');
-        if(currentScreen > 1 && currentScreen < 6) {
-            updateDegree();
-            drawOverlay('overlay'+(currentScreen-1));
+        
+        if (num >= 1 && num <= 5) {
+            renderCanvas('canvas'+num, num - 1);
+        } else if (num === 6) {
+            generatePDFPreview();
         }
     }
 
     function updateDegree() {
         degree = document.getElementById('plotDegree').value || 0;
-        for(let i=1; i<=4; i++) {
-            let img = document.getElementById('cimg'+i);
-            if(img) img.style.transform = `rotate(${degree}deg)`;
+        if(currentScreen >= 1 && currentScreen <= 5) {
+            renderCanvas('canvas'+currentScreen, currentScreen - 1);
         }
     }
 
-    // Convert screen coordinates to internal canvas resolution coordinates
+    // Touch & Mouse Logic on Screen 1
     function getPointerPos(e, targetCanvas) {
         const rect = targetCanvas.getBoundingClientRect();
         let clientX = e.touches ? e.touches[0].clientX : e.clientX;
         let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
         let scaleX = targetCanvas.width / rect.width;
         let scaleY = targetCanvas.height / rect.height;
-
-        return { 
-            x: (clientX - rect.left) * scaleX, 
-            y: (clientY - rect.top) * scaleY 
-        };
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
 
     function handleStart(e) {
+        if(currentScreen !== 1) return;
         e.preventDefault();
-        const pos = getPointerPos(e, canvas);
+        const pos = getPointerPos(e, c1);
         draggingPointIndex = -1;
-        
         for (let i = 0; i < points.length; i++) {
-            const dx = pos.x - points[i].x;
-            const dy = pos.y - points[i].y;
-            // Scale drag radius to internal resolution
-            if (Math.sqrt(dx * dx + dy * dy) < (DRAG_RADIUS * (CANVAS_RES/300))) {
-                draggingPointIndex = i;
-                break;
-            }
+            const dx = pos.x - points[i].x; const dy = pos.y - points[i].y;
+            if (Math.sqrt(dx * dx + dy * dy) < 80) { draggingPointIndex = i; break; }
         }
-        
         if (draggingPointIndex === -1) {
             points.push({x: pos.x, y: pos.y});
             draggingPointIndex = points.length - 1;
         }
-        drawPlot(ctx);
+        renderCanvas('canvas1', 0);
     }
 
     function handleMove(e) {
-        if (draggingPointIndex !== -1) {
+        if (currentScreen === 1 && draggingPointIndex !== -1) {
             e.preventDefault();
-            const pos = getPointerPos(e, canvas);
-            points[draggingPointIndex] = {x: pos.x, y: pos.y};
-            drawPlot(ctx);
+            points[draggingPointIndex] = getPointerPos(e, c1);
+            renderCanvas('canvas1', 0);
         }
     }
 
     function handleEnd(e) { draggingPointIndex = -1; }
 
-    canvas.addEventListener('mousedown', handleStart);
-    canvas.addEventListener('mousemove', handleMove);
-    canvas.addEventListener('mouseup', handleEnd);
-    canvas.addEventListener('mouseleave', handleEnd);
+    c1.addEventListener('mousedown', handleStart); c1.addEventListener('mousemove', handleMove);
+    c1.addEventListener('mouseup', handleEnd); c1.addEventListener('mouseleave', handleEnd);
+    c1.addEventListener('touchstart', handleStart, {passive: false});
+    c1.addEventListener('touchmove', handleMove, {passive: false});
+    c1.addEventListener('touchend', handleEnd);
 
-    canvas.addEventListener('touchstart', handleStart, {passive: false});
-    canvas.addEventListener('touchmove', handleMove, {passive: false});
-    canvas.addEventListener('touchend', handleEnd);
+    function undoPoint() { points.pop(); renderCanvas('canvas1', 0); }
+    function clearPoints() { points = []; renderCanvas('canvas1', 0); }
 
-    function drawPlot(context) {
-        context.clearRect(0, 0, CANVAS_RES, CANVAS_RES);
+    // THE MASTER DRAWING FUNCTION
+    function renderCanvas(canvasId, chakraIndex) {
+        const cvs = document.getElementById(canvasId);
+        if(!cvs) return;
+        const ctx = cvs.getContext('2d');
+        ctx.clearRect(0, 0, CANVAS_RES, CANVAS_RES);
         
+        // 1. Draw Map Base
         if (mapImage) {
-            context.globalAlpha = 0.5; 
-            // Draw map covering the internal canvas
-            context.drawImage(mapImage, 0, 0, CANVAS_RES, CANVAS_RES);
-            context.globalAlpha = 1.0;
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(mapImage, 0, 0, CANVAS_RES, CANVAS_RES);
+            ctx.globalAlpha = 1.0;
         }
 
-        if(points.length === 0) return;
-        
-        context.strokeStyle = '#4caf50';
-        context.lineWidth = 6; // Thicker lines for higher resolution
-        context.beginPath();
-        context.moveTo(points[0].x, points[0].y);
-        points.forEach(p => context.lineTo(p.x, p.y));
-        if(points.length > 2) context.closePath();
-        context.stroke();
-
+        // Calculate Center (Brahma Sthan)
         let cx = 0, cy = 0;
-        points.forEach((p, i) => {
-            context.fillStyle = '#ff5722';
-            context.beginPath(); context.arc(p.x, p.y, 15, 0, Math.PI*2); context.fill(); 
-            cx += p.x; cy += p.y;
-            // Draw Point number
-            context.fillStyle = '#fff';
-            context.font = "20px Arial";
-            context.fillText("P"+(i+1), p.x + 20, p.y - 20);
-        });
-
-        if (points.length >= 3) {
+        if(points.length > 0) {
+            points.forEach(p => { cx += p.x; cy += p.y; });
             cx /= points.length; cy /= points.length;
-            context.fillStyle = '#00bcd4';
-            context.beginPath(); context.arc(cx, cy, 15, 0, Math.PI*2); context.fill();
-            context.font = "30px Arial";
-            context.fillText('Brahma Sthan', cx+20, cy);
+        }
+
+        // 2. Draw Chakra exactly on Center Point
+        if(chakraIndex > 0 && points.length >= 3) {
+            let img = chakraImages[chakraIndex];
+            if(img && img.complete) {
+                // Find radius to cover the plot
+                let maxDist = 0;
+                points.forEach(p => {
+                    let d = Math.sqrt(Math.pow(p.x - cx, 2) + Math.pow(p.y - cy, 2));
+                    if(d > maxDist) maxDist = d;
+                });
+                let cSize = maxDist * 2.2; // Padding
+                if(cSize < 400) cSize = 400; // Minimum size
+
+                ctx.save();
+                ctx.translate(cx, cy); // Move context to Brahma Sthan
+                ctx.rotate(degree * Math.PI / 180); // Rotate by User Degree
+                ctx.drawImage(img, -cSize/2, -cSize/2, cSize, cSize); // Draw centered
+                ctx.restore();
+            }
+        }
+
+        // 3. Draw Lines and Dots
+        if(points.length > 0) {
+            ctx.strokeStyle = '#4caf50';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            points.forEach(p => ctx.lineTo(p.x, p.y));
+            if(points.length > 2) ctx.closePath();
+            ctx.stroke();
+
+            points.forEach((p, i) => {
+                ctx.fillStyle = '#ff5722';
+                ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillStyle = '#fff'; ctx.font = "bold 24px Arial";
+                ctx.fillText("P"+(i+1), p.x + 15, p.y - 15);
+            });
+
+            if (points.length >= 3) {
+                ctx.fillStyle = '#00bcd4';
+                ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI*2); ctx.fill();
+                ctx.font = "bold 28px Arial";
+                ctx.fillText('Brahma Sthan', cx+20, cy);
+            }
         }
     }
 
-    function drawOverlay(id) {
-        let oCtx = document.getElementById(id).getContext('2d');
-        drawPlot(oCtx);
+    // A4 PDF Preview Generation
+    function generatePDFPreview() {
+        const pdfCv = document.getElementById('pdfCanvas');
+        const pCtx = pdfCv.getContext('2d');
+        
+        // White Background
+        pCtx.fillStyle = '#ffffff';
+        pCtx.fillRect(0, 0, pdfCv.width, pdfCv.height);
+        
+        // Header Text
+        pCtx.fillStyle = '#000000';
+        pCtx.font = "bold 45px Arial"; pCtx.textAlign = "center";
+        pCtx.fillText("VASTU PLOT ANALYSIS", pdfCv.width/2, 80);
+        
+        pCtx.font = "30px Arial";
+        pCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", pdfCv.width/2, 130);
+        pCtx.fillText("Contact: +91 XXXXXXXXXX", pdfCv.width/2, 175);
+        
+        // Draw the 4 canvases into a 2x2 Grid on A4
+        const w = 500, h = 500; 
+        const marginX = 60, marginY = 250;
+        const gapX = 70, gapY = 150;
+        
+        const positions = [
+            {x: marginX, y: marginY, title: "Chakra 1"},
+            {x: marginX + w + gapX, y: marginY, title: "Chakra 2"},
+            {x: marginX, y: marginY + h + gapY, title: "Chakra 3"},
+            {x: marginX + w + gapX, y: marginY + h + gapY, title: "45 Devtas"}
+        ];
+
+        for(let i=1; i<=4; i++) {
+            let sourceCanvas = document.getElementById('canvas'+(i+1));
+            let pos = positions[i-1];
+            
+            // Draw Title
+            pCtx.fillStyle = '#d32f2f'; pCtx.font = "bold 35px Arial"; pCtx.textAlign = "center";
+            pCtx.fillText(pos.title, pos.x + w/2, pos.y - 20);
+            
+            // Draw Canvas Image
+            pCtx.drawImage(sourceCanvas, pos.x, pos.y, w, h);
+            
+            // Draw Border
+            pCtx.strokeStyle = "#333"; pCtx.lineWidth = 3;
+            pCtx.strokeRect(pos.x, pos.y, w, h);
+        }
     }
 
-    function undoPoint() { points.pop(); drawPlot(ctx); }
-    function clearPoints() { points = []; drawPlot(ctx); }
-
-    function generatePDF() {
-        document.getElementById('pdf-degree-text').innerText = "Plot Degree: " + degree + "°";
-        const element = document.getElementById('pdf-page-content');
-        element.style.display = 'block';
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pdfCanvas = document.getElementById('pdfCanvas');
         
-        const opt = {
-            margin:       10,
-            filename:     'Vastu_Report_Sai_Lohani.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save().then(() => {
-            element.style.display = 'none';
-        });
+        // Convert the preview canvas directly to a high-quality JPEG
+        const imgData = pdfCanvas.toDataURL('image/jpeg', 0.95);
+        
+        // Place it filling the A4 page (210x297 mm)
+        doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+        doc.save('Vastu_Report_Sai_Lohani.pdf');
     }
 </script>
 </body>
