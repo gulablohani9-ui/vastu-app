@@ -134,15 +134,15 @@
         <h2>6. Final PDF Preview</h2>
         
         <div class="instruction-box">
-            <b>Mobile Users:</b> App may block direct downloads. Click the yellow <b>"🖨️ Print / Save PDF"</b> button and select "Save as PDF" at the top of your screen to guarantee it saves!
+            <b>Mobile Users:</b> The app will create all 4 pages as one A4 PDF. <b>Print All</b> opens the Android share/print sheet, and <b>Save PDF to Phone</b> saves the PDF in the app Documents folder.
         </div>
 
         <div class="nav-buttons" style="flex-direction: column; align-items: center; margin-bottom: 20px;">
-            <button onclick="window.print()" class="print-btn">🖨️ Print / Save PDF</button>
+            <button onclick="printAll()" class="print-btn">🖨️ Print All / Save PDF</button>
             
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button onclick="nextScreen(5)">⬅ Back</button>
-                <button onclick="directDownload()" class="download-btn">📥 Try Direct Download</button>
+                <button onclick="savePdfToPhone()" class="download-btn">📥 Save PDF to Phone</button>
                 <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
             </div>
         </div>
@@ -204,14 +204,14 @@
         reader.readAsDataURL(file);
     }
 
-    function nextScreen(num) {
+    async function nextScreen(num) {
         document.getElementById('screen'+currentScreen).classList.remove('active');
         currentScreen = num;
         document.getElementById('screen'+currentScreen).classList.add('active');
         if (num >= 1 && num <= 5) {
             renderCanvas('canvas'+num, num - 1);
         } else if (num === 6) {
-            buildPDFPreview(); 
+            await buildPDFPreview();
         }
     }
 
@@ -312,65 +312,170 @@
         }
     }
 
-    // 🔥 PREPARE PDF PREVIEW AS PRINTABLE IMAGES
-    function buildPDFPreview() {
+    // Build all four A4 pages. We keep the rendered pages as images so the
+    // PDF is identical on Chrome, Android WebView and the Capacitor APK.
+    async function buildPDFPreview() {
         const previewArea = document.getElementById('pdf-preview-area');
-        previewArea.innerHTML = ''; // Clear old
+        previewArea.innerHTML = '<p id="loadingMsg">Preparing 4 pages…</p>';
+
+        // Give the WebView one frame to finish the last canvas render.
+        await new Promise(resolve => requestAnimationFrame(resolve));
 
         const titles = ["Vastu Chakra 1", "Vastu Chakra 2", "Vastu Chakra 3", "45 Vastu Devtas"];
         const renderCvs = document.getElementById('renderCanvas');
         const rCtx = renderCvs.getContext('2d');
+        const pageImages = [];
 
         for(let i=1; i<=4; i++) {
-            // Draw a full A4 page inside the hidden canvas
             rCtx.fillStyle = '#ffffff';
             rCtx.fillRect(0, 0, 1190, 1684);
-            
+
             rCtx.fillStyle = '#000000';
-            rCtx.font = "bold 65px Arial"; rCtx.textAlign = "center";
-            rCtx.fillText("VASTU PLOT ANALYSIS", 1190/2, 120);
-            
+            rCtx.font = "bold 65px Arial";
+            rCtx.textAlign = "center";
+            rCtx.fillText("VASTU PLOT ANALYSIS", 595, 120);
             rCtx.font = "35px Arial";
-            rCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", 1190/2, 190);
-            rCtx.fillText("Contact: +91 XXXXXXXXXX", 1190/2, 250);
-            
-            rCtx.fillStyle = '#d32f2f'; rCtx.font = "bold 55px Arial";
-            rCtx.fillText(titles[i-1], 1190/2, 350);
+            rCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", 595, 190);
+            rCtx.fillText("Contact: +91 XXXXXXXXXX", 595, 250);
+            rCtx.fillStyle = '#d32f2f';
+            rCtx.font = "bold 55px Arial";
+            rCtx.fillText(titles[i-1], 595, 350);
 
-            // Add the map
-            let sourceCanvas = document.getElementById('canvas'+(i+1));
-            let w = 950, h = 950;
-            let startX = (1190 - w) / 2; 
-            let startY = 420; 
-            
+            const sourceCanvas = document.getElementById('canvas'+(i+1));
+            const w = 950, h = 950;
+            const startX = (1190 - w) / 2;
+            const startY = 420;
             rCtx.drawImage(sourceCanvas, startX, startY, w, h);
-            rCtx.strokeStyle = "#333"; rCtx.lineWidth = 5; rCtx.strokeRect(startX, startY, w, h);
-            
-            rCtx.fillStyle = '#666'; rCtx.font = "30px Arial";
-            rCtx.fillText("Page " + i + " of 4", 1190/2, 1600);
+            rCtx.strokeStyle = "#333";
+            rCtx.lineWidth = 5;
+            rCtx.strokeRect(startX, startY, w, h);
+            rCtx.fillStyle = '#666';
+            rCtx.font = "30px Arial";
+            rCtx.fillText("Page " + i + " of 4", 595, 1600);
 
-            // Convert that A4 page to an image
-            let imgData = renderCvs.toDataURL('image/jpeg', 0.9);
-            
-            // Add image to preview area
-            let imgEl = document.createElement('img');
+            const imgData = renderCvs.toDataURL('image/jpeg', 0.92);
+            pageImages.push(imgData);
+
+            const imgEl = document.createElement('img');
             imgEl.src = imgData;
             imgEl.className = 'pdf-page-img';
             previewArea.appendChild(imgEl);
         }
+
+        previewArea.dataset.ready = 'true';
+        previewArea.dataset.pages = pageImages.length;
+        document.getElementById('loadingMsg')?.remove();
     }
 
-    // Direct Download Fallback using html2pdf
-    function directDownload() {
+    function dataUriToBase64(dataUri) {
+        return dataUri.split(',')[1];
+    }
+
+    async function makePdfBlob() {
         const element = document.getElementById('pdf-preview-area');
+        if (element.dataset.ready !== 'true') await buildPDFPreview();
+
         const opt = {
-            margin:       0,
-            filename:     'Vastu_Report_Sai_Lohani.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            margin: 0,
+            filename: 'Vastu_Report_Sai_Lohani.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 1, useCORS: true, backgroundColor: '#ffffff' },
+            pagebreak: { mode: ['css', 'legacy'] },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
         };
-        html2pdf().set(opt).from(element).save();
+        return await html2pdf().set(opt).from(element).outputPdf('blob');
+    }
+
+    async function savePdfToPhone() {
+        try {
+            if (typeof html2pdf === 'undefined') throw new Error('PDF library not loaded');
+            const blob = await makePdfBlob();
+            const arrayBuffer = await blob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            const chunk = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunk) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+            }
+            const base64 = btoa(binary);
+            const fileName = 'Vastu_Report_Sai_Lohani_' + Date.now() + '.pdf';
+
+            // Capacitor Filesystem (APK)
+            const Filesystem = window.Capacitor?.Plugins?.Filesystem;
+            if (Filesystem) {
+                const result = await Filesystem.writeFile({
+                    path: fileName,
+                    data: base64,
+                    directory: 'DOCUMENTS',
+                    recursive: true
+                });
+                alert('PDF saved successfully.\nFile: ' + fileName);
+                return result;
+            }
+
+            // Browser fallback
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        } catch (err) {
+            console.error('Save PDF failed:', err);
+            alert('PDF save failed. Please use Print All and choose Save as PDF.');
+        }
+    }
+
+    async function printAll() {
+        try {
+            const blob = await makePdfBlob();
+            const fileName = 'Vastu_Report_Sai_Lohani_' + Date.now() + '.pdf';
+            const arrayBuffer = await blob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            const chunk = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunk) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+            }
+            const base64 = btoa(binary);
+            const Filesystem = window.Capacitor?.Plugins?.Filesystem;
+            const Share = window.Capacitor?.Plugins?.Share;
+
+            if (Filesystem && Share) {
+                const saved = await Filesystem.writeFile({
+                    path: fileName,
+                    data: base64,
+                    directory: 'CACHE',
+                    recursive: true
+                });
+                await Share.share({
+                    title: 'Vastu Report',
+                    text: 'Vastu Plot Analysis PDF',
+                    url: saved.uri,
+                    dialogTitle: 'Print / Share Vastu PDF'
+                });
+                return;
+            }
+
+            // Web fallback: open the generated PDF in a new tab so the
+            // browser/Android print menu can handle it.
+            const url = URL.createObjectURL(blob);
+            const opened = window.open(url, '_blank');
+            if (!opened) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            }
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (err) {
+            console.error('Print All failed:', err);
+            alert('Print failed. Please try Save PDF to Phone.');
+        }
     }
 </script>
 </body>
