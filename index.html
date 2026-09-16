@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vastu Plot Analyzer - Sai Lohani</title>
-    <!-- jsPDF for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- No External Libraries Needed! 100% Offline & Crash-Proof -->
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
         .screen { display: none; padding: 10px; text-align: center; }
@@ -28,17 +27,14 @@
         .file-upload-btn { background: #2196F3; flex: 1; min-width: 140px; }
         .fullscreen-btn { background: #673ab7; flex: 1; min-width: 140px; }
         
-        /* नया प्रीव्यू कंटेनर - यह इमेजेस दिखाएगा जो कभी क्रैश नहीं होतीं */
-        #final-preview-container { margin-top: 15px; padding: 10px; background: #222; border-radius: 8px; }
-        .final-page-img { width: 100%; max-width: 600px; margin-bottom: 20px; border: 3px solid #fff; border-radius: 5px; box-shadow: 0px 4px 8px rgba(0,0,0,0.5); }
+        /* Image Report Styles */
+        #final-preview-container { margin-top: 15px; padding: 10px; background: #222; border-radius: 8px; max-height: 60vh; overflow-y: scroll; border: 2px solid #555; }
+        #finalReportImg { width: 100%; max-width: 600px; border-radius: 5px; box-shadow: 0px 4px 8px rgba(0,0,0,0.5); }
         
-        .instruction-box { background: #ffeb3b; color: #000; padding: 10px; border-radius: 8px; font-size: 14px; margin-bottom: 15px; font-weight: bold; }
+        .instruction-box { background: #ffeb3b; color: #000; padding: 12px; border-radius: 8px; font-size: 15px; margin-bottom: 15px; font-weight: bold; line-height: 1.4; }
     </style>
 </head>
 <body>
-
-    <!-- Hidden Canvas for rendering A4 pages safely -->
-    <canvas id="renderCanvas" width="1190" height="1684" style="display: none;"></canvas>
 
     <!-- Screen 1: Plot Setup -->
     <div id="screen1" class="screen active">
@@ -112,26 +108,26 @@
             <input type="range" id="degSlider5" min="0" max="360" step="1" value="0" oninput="setDegree(this.value)">
         </div>
         <div class="canvas-container"><canvas id="canvas5" class="view-canvas"></canvas></div>
-        <div class="nav-buttons"><button onclick="nextScreen(4)">⬅ Back</button><button onclick="nextScreen(6)">Final Preview ➡</button></div>
+        <div class="nav-buttons"><button onclick="nextScreen(4)">⬅ Back</button><button onclick="nextScreen(6)">Generate Report ➡</button></div>
     </div>
 
-    <!-- Screen 6: Final Generation (Bulletproof Mode) -->
+    <!-- Screen 6: Final Image Report (Bulletproof Mode) -->
     <div id="screen6" class="screen">
-        <h2>6. Final Report</h2>
+        <h2>6. Final Vastu Report</h2>
         
         <div class="instruction-box">
-            💡 TIP: If download fails, just Long-Press (उंगली दबा कर रखें) on any image below to Share/Save it directly!
+            👉 Long-Press (उंगली दबा कर रखें) on the report below and select "Share Image" to send directly via WhatsApp!
         </div>
 
-        <div class="nav-buttons" style="margin-bottom: 20px;">
+        <div class="nav-buttons" style="margin-bottom: 15px;">
             <button onclick="nextScreen(5)">⬅ Back</button>
-            <button onclick="generateAndDownloadPDF()" style="background: #ff5722;" id="downloadBtn">📥 Download PDF</button>
+            <button onclick="shareReport()" style="background: #25D366;" id="shareBtn">💬 Share to WhatsApp</button>
             <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
         </div>
 
-        <!-- Yahan par 4 images automatically aayengi -->
         <div id="final-preview-container">
-            <p>Loading your maps...</p>
+            <p id="loadingText">Generating High Quality Report...</p>
+            <img id="finalReportImg" src="" alt="Vastu Report will appear here" style="display:none;" />
         </div>
     </div>
 
@@ -143,9 +139,7 @@
     let draggingPointIndex = -1;
     const CANVAS_RES = 800; 
     let chakraScales = [1, 1, 1, 1, 1]; 
-    
-    // Store generated page images
-    let generatedPageImages = [];
+    let reportBlob = null; // Report image store karne ke liye
 
     const chakraImages = [null, new Image(), new Image(), new Image(), new Image()];
     chakraImages[1].src = "1000079054.png";
@@ -196,7 +190,7 @@
         if (num >= 1 && num <= 5) {
             renderCanvas('canvas'+num, num - 1);
         } else if (num === 6) {
-            buildFinalImages(); // Create the images for screen 6
+            generateFinalImageReport(); // Generate single image report
         }
     }
 
@@ -297,75 +291,94 @@
         }
     }
 
-    // 🔥 This function creates standard HTML Images from the canvases for 100% reliable preview
-    function buildFinalImages() {
-        const container = document.getElementById('final-preview-container');
-        container.innerHTML = ''; 
-        generatedPageImages = [];
+    // 🔥 THIS IS THE ULTIMATE FIX: COMBINE EVERYTHING INTO 1 BIG IMAGE!
+    function generateFinalImageReport() {
+        try {
+            document.getElementById('loadingText').style.display = 'block';
+            document.getElementById('finalReportImg').style.display = 'none';
 
-        const titles = ["Vastu Chakra 1", "Vastu Chakra 2", "Vastu Chakra 3", "45 Vastu Devtas"];
-        const renderCvs = document.getElementById('renderCanvas');
-        const rCtx = renderCvs.getContext('2d');
+            // Create a long virtual canvas
+            const reportCvs = document.createElement('canvas');
+            reportCvs.width = 1000;
+            reportCvs.height = 4500; // Space for all 4 images + header
+            const rCtx = reportCvs.getContext('2d');
 
-        for(let i=1; i<=4; i++) {
-            // Draw a full A4 page inside the hidden canvas
+            // Fill white background
             rCtx.fillStyle = '#ffffff';
-            rCtx.fillRect(0, 0, 1190, 1684);
-            
+            rCtx.fillRect(0, 0, reportCvs.width, reportCvs.height);
+
+            // Add Header
             rCtx.fillStyle = '#000000';
-            rCtx.font = "bold 60px Arial"; rCtx.textAlign = "center";
-            rCtx.fillText("VASTU PLOT ANALYSIS", 1190/2, 120);
+            rCtx.font = "bold 55px Arial";
+            rCtx.textAlign = "center";
+            rCtx.fillText("VASTU PLOT ANALYSIS", 500, 100);
             
             rCtx.font = "35px Arial";
-            rCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", 1190/2, 190);
-            rCtx.fillText("Contact: +91 XXXXXXXXXX", 1190/2, 250);
-            
-            rCtx.fillStyle = '#d32f2f'; rCtx.font = "bold 55px Arial";
-            rCtx.fillText(titles[i-1], 1190/2, 360);
+            rCtx.fillText("Consultant: Sai Lohani | Plot Degree: " + degree + "°", 500, 170);
+            rCtx.fillText("Contact: +91 XXXXXXXXXX", 500, 230);
 
-            // Copy the plot canvas map into this A4 canvas
-            let sourceCanvas = document.getElementById('canvas'+(i+1));
-            let w = 1000, h = 1000;
-            let startX = (1190 - w) / 2; 
-            let startY = 420; 
-            
-            rCtx.drawImage(sourceCanvas, startX, startY, w, h);
-            rCtx.strokeStyle = "#333"; rCtx.lineWidth = 5; rCtx.strokeRect(startX, startY, w, h);
-            
-            rCtx.fillStyle = '#666'; rCtx.font = "30px Arial";
-            rCtx.fillText("Page " + i + " of 4", 1190/2, 1600);
+            const titles = ["1. Vastu Chakra 1", "2. Vastu Chakra 2", "3. Vastu Chakra 3", "4. 45 Vastu Devtas"];
+            let startY = 300;
 
-            // Convert to JPEG Image String
-            let imgData = renderCvs.toDataURL('image/jpeg', 0.8);
-            generatedPageImages.push(imgData);
+            for(let i=1; i<=4; i++) {
+                // Draw Section Title
+                rCtx.fillStyle = '#d32f2f';
+                rCtx.font = "bold 45px Arial";
+                rCtx.fillText(titles[i-1], 500, startY + 60);
 
-            // Add standard HTML <img> to the screen (Guaranteed to show)
-            let imgElement = document.createElement('img');
-            imgElement.src = imgData;
-            imgElement.className = 'final-page-img';
-            container.appendChild(imgElement);
+                // Draw Map
+                let srcCvs = document.getElementById('canvas' + (i+1));
+                rCtx.drawImage(srcCvs, 100, startY + 100, 800, 800);
+                
+                // Draw Border
+                rCtx.strokeStyle = "#333";
+                rCtx.lineWidth = 5;
+                rCtx.strokeRect(100, startY + 100, 800, 800);
+
+                startY += 1020; // Move down for the next map
+            }
+
+            // Convert canvas to a beautiful JPEG image
+            const imgData = reportCvs.toDataURL('image/jpeg', 0.85);
+            
+            // Show it on screen
+            document.getElementById('finalReportImg').src = imgData;
+            document.getElementById('finalReportImg').style.display = 'block';
+            document.getElementById('loadingText').style.display = 'none';
+            
+            // Prepare file for sharing
+            reportBlob = dataURItoBlob(imgData);
+
+        } catch (e) {
+            alert("Error generating report: " + e.message);
         }
     }
 
-    // Try to download PDF using jsPDF
-    function generateAndDownloadPDF() {
-        const btn = document.getElementById('downloadBtn');
-        btn.innerText = "⏳ Saving...";
-        
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
-            
-            for(let i = 0; i < 4; i++) {
-                if (i > 0) doc.addPage();
-                doc.addImage(generatedPageImages[i], 'JPEG', 0, 0, 210, 297);
+    // Helper to convert base64 to File
+    function dataURItoBlob(dataURI) {
+        let byteString = atob(dataURI.split(',')[1]);
+        let mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        let ab = new ArrayBuffer(byteString.length);
+        let ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) { ia[i] = byteString.charCodeAt(i); }
+        return new Blob([ab], {type: mimeString});
+    }
+
+    // Mobile Share Intent Feature
+    async function shareReport() {
+        if (reportBlob && navigator.canShare) {
+            const file = new File([reportBlob], "Vastu_Report_Sai_Lohani.jpg", { type: "image/jpeg" });
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Vastu Analysis Report',
+                    text: 'Here is the Vastu Plot Analysis Report by Sai Lohani.'
+                });
+            } catch(e) { 
+                console.log("Share cancelled.");
             }
-            
-            doc.save('Vastu_Report_Sai_Lohani.pdf');
-            btn.innerText = "📥 Download PDF";
-        } catch (error) {
-            alert("App blocked the PDF download.\n\nPLEASE LONG-PRESS ON THE IMAGES BELOW TO SAVE OR SHARE THEM DIRECTLY.");
-            btn.innerText = "📥 Download PDF";
+        } else {
+            alert("Share API not supported by your phone.\n\nPlease Long-Press on the image to Save or Share it!");
         }
     }
 </script>
