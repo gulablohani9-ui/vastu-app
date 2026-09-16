@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vastu Plot Analyzer - Sai Lohani</title>
-    <!-- No External Libraries Needed! 100% Offline & Crash-Proof -->
+    <!-- PDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
         .screen { display: none; padding: 10px; text-align: center; }
@@ -19,25 +20,39 @@
         button:hover { background: #45a049; }
         .nav-buttons { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
         
-        .controls-card { background: #2c2c2c; padding: 12px; margin: 10px auto; border-radius: 10px; max-width: 95vw; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .controls-card label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; color: #ffeb3b; font-weight: bold; }
-        .controls-card input[type="range"] { width: 100%; margin-bottom: 12px; height: 8px; background: #555; outline: none; border-radius: 5px; }
+        .controls-card { background: #2c2c2c; padding: 12px; margin: 10px auto; border-radius: 10px; max-width: 95vw; }
+        .controls-card label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; color: #ffeb3b; }
+        .controls-card input[type="range"] { width: 100%; margin-bottom: 12px; }
         
         .top-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
         .file-upload-btn { background: #2196F3; flex: 1; min-width: 140px; }
         .fullscreen-btn { background: #673ab7; flex: 1; min-width: 140px; }
         
-        /* Image Report Styles */
-        #final-preview-container { margin-top: 15px; padding: 10px; background: #222; border-radius: 8px; max-height: 60vh; overflow-y: scroll; border: 2px solid #555; }
-        #finalReportImg { width: 100%; max-width: 600px; border-radius: 5px; box-shadow: 0px 4px 8px rgba(0,0,0,0.5); display: block; margin: 0 auto; }
+        /* PDF Preview Area */
+        #pdf-preview-area { background: #333; padding: 15px; overflow-y: scroll; height: 50vh; border-radius: 8px; margin-bottom: 15px; border: 2px solid #555; }
+        .pdf-page-img { width: 100%; max-width: 210mm; background: white; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.8); border: 1px solid #fff; }
         
-        .instruction-box { background: #ffeb3b; color: #000; padding: 12px; border-radius: 8px; font-size: 15px; margin-bottom: 15px; font-weight: bold; line-height: 1.4; }
+        .print-btn { background: #ff9800; color: black; font-size: 18px; padding: 15px 30px; width: 100%; max-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
+        .download-btn { background: #03a9f4; padding: 15px 30px; font-size: 18px; width: 100%; max-width: 300px; }
+
+        /* 🔥 PRINT CSS: Yahin jadu hota hai. Print dabane par sirf 4 A4 page bachenge */
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            body * { visibility: hidden; }
+            #pdf-preview-area, #pdf-preview-area * { visibility: visible; }
+            #pdf-preview-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; overflow: visible; background: transparent; padding: 0; border: none; margin: 0; }
+            .pdf-page-img { width: 100%; max-width: 100%; height: auto; margin: 0; padding: 0; page-break-after: always; box-shadow: none; border: none; }
+            .nav-buttons, h2, p, button, .instruction-box { display: none !important; }
+            ::-webkit-scrollbar { display: none; }
+        }
         
-        /* The magical download link styling */
-        .download-link-btn { display: inline-block; background: #25D366; color: white; padding: 15px 30px; font-size: 20px; font-weight: bold; text-decoration: none; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .instruction-box { background: #e3f2fd; color: #0d47a1; padding: 12px; border-radius: 8px; font-size: 15px; margin-bottom: 15px; text-align: left; }
     </style>
 </head>
 <body>
+
+    <!-- Hidden Rendering Canvas for High Quality Pages -->
+    <canvas id="renderCanvas" width="1190" height="1684" style="display: none;"></canvas>
 
     <!-- Screen 1: Plot Setup -->
     <div id="screen1" class="screen active">
@@ -111,31 +126,30 @@
             <input type="range" id="degSlider5" min="0" max="360" step="1" value="0" oninput="setDegree(this.value)">
         </div>
         <div class="canvas-container"><canvas id="canvas5" class="view-canvas"></canvas></div>
-        <div class="nav-buttons"><button onclick="nextScreen(4)">⬅ Back</button><button onclick="nextScreen(6)">Generate Report ➡</button></div>
+        <div class="nav-buttons"><button onclick="nextScreen(4)">⬅ Back</button><button onclick="nextScreen(6)">Preview PDF ➡</button></div>
     </div>
 
-    <!-- Screen 6: Final Image Report -->
+    <!-- Screen 6: PDF Preview & Download/Print -->
     <div id="screen6" class="screen">
-        <h2>6. Final Vastu Report</h2>
+        <h2>6. Final PDF Preview</h2>
         
         <div class="instruction-box">
-            ✅ Your report is ready! Click the green button below to save it directly to your phone.
+            <b>Mobile Users:</b> App may block direct downloads. Click the yellow <b>"🖨️ Print / Save PDF"</b> button and select "Save as PDF" at the top of your screen to guarantee it saves!
         </div>
 
-        <div class="nav-buttons" style="margin-bottom: 15px; flex-direction: column; align-items: center;">
-            <!-- THIS IS THE ULTIMATE FIX: An anchor tag masquerading as a button -->
-            <a id="downloadLinkBtn" class="download-link-btn" href="#" download="Vastu_Report_Sai_Lohani.jpg">📥 Download Report (JPG)</a>
+        <div class="nav-buttons" style="flex-direction: column; align-items: center; margin-bottom: 20px;">
+            <button onclick="window.print()" class="print-btn">🖨️ Print / Save PDF</button>
             
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button onclick="nextScreen(5)">⬅ Back</button>
+                <button onclick="directDownload()" class="download-btn">📥 Try Direct Download</button>
                 <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
             </div>
         </div>
 
-        <div id="final-preview-container">
-            <p id="loadingText">Generating High Quality Report...</p>
-            <!-- Important: Added pointer-events:none to stop text selection menu on long press -->
-            <img id="finalReportImg" src="" alt="Vastu Report" style="display:none; pointer-events: none; -webkit-user-select: none; user-select: none;" />
+        <!-- Yahan PDF ke 4 page render honge as images -->
+        <div id="pdf-preview-area">
+            <p id="loadingMsg">Loading pages...</p>
         </div>
     </div>
 
@@ -145,7 +159,7 @@
     let degree = 0;
     let mapImage = null; 
     let draggingPointIndex = -1;
-    const CANVAS_RES = 800; 
+    const CANVAS_RES = 1000; 
     let chakraScales = [1, 1, 1, 1, 1]; 
 
     const chakraImages = [null, new Image(), new Image(), new Image(), new Image()];
@@ -197,7 +211,7 @@
         if (num >= 1 && num <= 5) {
             renderCanvas('canvas'+num, num - 1);
         } else if (num === 6) {
-            generateFinalImageReport(); 
+            buildPDFPreview(); 
         }
     }
 
@@ -298,62 +312,65 @@
         }
     }
 
-    function generateFinalImageReport() {
-        try {
-            document.getElementById('loadingText').style.display = 'block';
-            document.getElementById('finalReportImg').style.display = 'none';
+    // 🔥 PREPARE PDF PREVIEW AS PRINTABLE IMAGES
+    function buildPDFPreview() {
+        const previewArea = document.getElementById('pdf-preview-area');
+        previewArea.innerHTML = ''; // Clear old
 
-            const reportCvs = document.createElement('canvas');
-            reportCvs.width = 1000;
-            reportCvs.height = 4500; 
-            const rCtx = reportCvs.getContext('2d');
+        const titles = ["Vastu Chakra 1", "Vastu Chakra 2", "Vastu Chakra 3", "45 Vastu Devtas"];
+        const renderCvs = document.getElementById('renderCanvas');
+        const rCtx = renderCvs.getContext('2d');
 
+        for(let i=1; i<=4; i++) {
+            // Draw a full A4 page inside the hidden canvas
             rCtx.fillStyle = '#ffffff';
-            rCtx.fillRect(0, 0, reportCvs.width, reportCvs.height);
-
+            rCtx.fillRect(0, 0, 1190, 1684);
+            
             rCtx.fillStyle = '#000000';
-            rCtx.font = "bold 55px Arial";
-            rCtx.textAlign = "center";
-            rCtx.fillText("VASTU PLOT ANALYSIS", 500, 100);
+            rCtx.font = "bold 65px Arial"; rCtx.textAlign = "center";
+            rCtx.fillText("VASTU PLOT ANALYSIS", 1190/2, 120);
             
             rCtx.font = "35px Arial";
-            rCtx.fillText("Consultant: Sai Lohani | Plot Degree: " + degree + "°", 500, 170);
-            rCtx.fillText("Contact: +91 XXXXXXXXXX", 500, 230);
-
-            const titles = ["1. Vastu Chakra 1", "2. Vastu Chakra 2", "3. Vastu Chakra 3", "4. 45 Vastu Devtas"];
-            let startY = 300;
-
-            for(let i=1; i<=4; i++) {
-                rCtx.fillStyle = '#d32f2f';
-                rCtx.font = "bold 45px Arial";
-                rCtx.fillText(titles[i-1], 500, startY + 60);
-
-                let srcCvs = document.getElementById('canvas' + (i+1));
-                rCtx.drawImage(srcCvs, 100, startY + 100, 800, 800);
-                
-                rCtx.strokeStyle = "#333";
-                rCtx.lineWidth = 5;
-                rCtx.strokeRect(100, startY + 100, 800, 800);
-
-                startY += 1020; 
-            }
-
-            // Get the image data
-            const imgData = reportCvs.toDataURL('image/jpeg', 0.85);
+            rCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", 1190/2, 190);
+            rCtx.fillText("Contact: +91 XXXXXXXXXX", 1190/2, 250);
             
-            // 1. Show the image on screen
-            document.getElementById('finalReportImg').src = imgData;
-            document.getElementById('finalReportImg').style.display = 'block';
-            document.getElementById('loadingText').style.display = 'none';
-            
-            // 2. THIS IS THE MAGIC: Put the image data DIRECTLY into the link's href
-            // Android WebViews respect anchor tag downloads much better than JS triggered ones
-            const downloadBtn = document.getElementById('downloadLinkBtn');
-            downloadBtn.href = imgData;
+            rCtx.fillStyle = '#d32f2f'; rCtx.font = "bold 55px Arial";
+            rCtx.fillText(titles[i-1], 1190/2, 350);
 
-        } catch (e) {
-            alert("Error generating report: " + e.message);
+            // Add the map
+            let sourceCanvas = document.getElementById('canvas'+(i+1));
+            let w = 950, h = 950;
+            let startX = (1190 - w) / 2; 
+            let startY = 420; 
+            
+            rCtx.drawImage(sourceCanvas, startX, startY, w, h);
+            rCtx.strokeStyle = "#333"; rCtx.lineWidth = 5; rCtx.strokeRect(startX, startY, w, h);
+            
+            rCtx.fillStyle = '#666'; rCtx.font = "30px Arial";
+            rCtx.fillText("Page " + i + " of 4", 1190/2, 1600);
+
+            // Convert that A4 page to an image
+            let imgData = renderCvs.toDataURL('image/jpeg', 0.9);
+            
+            // Add image to preview area
+            let imgEl = document.createElement('img');
+            imgEl.src = imgData;
+            imgEl.className = 'pdf-page-img';
+            previewArea.appendChild(imgEl);
         }
+    }
+
+    // Direct Download Fallback using html2pdf
+    function directDownload() {
+        const element = document.getElementById('pdf-preview-area');
+        const opt = {
+            margin:       0,
+            filename:     'Vastu_Report_Sai_Lohani.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
     }
 </script>
 </body>
