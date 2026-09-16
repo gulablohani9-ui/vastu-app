@@ -29,9 +29,12 @@
         
         /* Image Report Styles */
         #final-preview-container { margin-top: 15px; padding: 10px; background: #222; border-radius: 8px; max-height: 60vh; overflow-y: scroll; border: 2px solid #555; }
-        #finalReportImg { width: 100%; max-width: 600px; border-radius: 5px; box-shadow: 0px 4px 8px rgba(0,0,0,0.5); }
+        #finalReportImg { width: 100%; max-width: 600px; border-radius: 5px; box-shadow: 0px 4px 8px rgba(0,0,0,0.5); display: block; margin: 0 auto; }
         
         .instruction-box { background: #ffeb3b; color: #000; padding: 12px; border-radius: 8px; font-size: 15px; margin-bottom: 15px; font-weight: bold; line-height: 1.4; }
+        
+        /* The magical download link styling */
+        .download-link-btn { display: inline-block; background: #25D366; color: white; padding: 15px 30px; font-size: 20px; font-weight: bold; text-decoration: none; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
@@ -111,23 +114,28 @@
         <div class="nav-buttons"><button onclick="nextScreen(4)">⬅ Back</button><button onclick="nextScreen(6)">Generate Report ➡</button></div>
     </div>
 
-    <!-- Screen 6: Final Image Report (Bulletproof Mode) -->
+    <!-- Screen 6: Final Image Report -->
     <div id="screen6" class="screen">
         <h2>6. Final Vastu Report</h2>
         
         <div class="instruction-box">
-            👉 Long-Press (उंगली दबा कर रखें) on the report below and select "Share Image" to send directly via WhatsApp!
+            ✅ Your report is ready! Click the green button below to save it directly to your phone.
         </div>
 
-        <div class="nav-buttons" style="margin-bottom: 15px;">
-            <button onclick="nextScreen(5)">⬅ Back</button>
-            <button onclick="shareReport()" style="background: #25D366;" id="shareBtn">💬 Share to WhatsApp</button>
-            <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
+        <div class="nav-buttons" style="margin-bottom: 15px; flex-direction: column; align-items: center;">
+            <!-- THIS IS THE ULTIMATE FIX: An anchor tag masquerading as a button -->
+            <a id="downloadLinkBtn" class="download-link-btn" href="#" download="Vastu_Report_Sai_Lohani.jpg">📥 Download Report (JPG)</a>
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="nextScreen(5)">⬅ Back</button>
+                <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
+            </div>
         </div>
 
         <div id="final-preview-container">
             <p id="loadingText">Generating High Quality Report...</p>
-            <img id="finalReportImg" src="" alt="Vastu Report will appear here" style="display:none;" />
+            <!-- Important: Added pointer-events:none to stop text selection menu on long press -->
+            <img id="finalReportImg" src="" alt="Vastu Report" style="display:none; pointer-events: none; -webkit-user-select: none; user-select: none;" />
         </div>
     </div>
 
@@ -139,7 +147,6 @@
     let draggingPointIndex = -1;
     const CANVAS_RES = 800; 
     let chakraScales = [1, 1, 1, 1, 1]; 
-    let reportBlob = null; // Report image store karne ke liye
 
     const chakraImages = [null, new Image(), new Image(), new Image(), new Image()];
     chakraImages[1].src = "1000079054.png";
@@ -190,7 +197,7 @@
         if (num >= 1 && num <= 5) {
             renderCanvas('canvas'+num, num - 1);
         } else if (num === 6) {
-            generateFinalImageReport(); // Generate single image report
+            generateFinalImageReport(); 
         }
     }
 
@@ -291,23 +298,19 @@
         }
     }
 
-    // 🔥 THIS IS THE ULTIMATE FIX: COMBINE EVERYTHING INTO 1 BIG IMAGE!
     function generateFinalImageReport() {
         try {
             document.getElementById('loadingText').style.display = 'block';
             document.getElementById('finalReportImg').style.display = 'none';
 
-            // Create a long virtual canvas
             const reportCvs = document.createElement('canvas');
             reportCvs.width = 1000;
-            reportCvs.height = 4500; // Space for all 4 images + header
+            reportCvs.height = 4500; 
             const rCtx = reportCvs.getContext('2d');
 
-            // Fill white background
             rCtx.fillStyle = '#ffffff';
             rCtx.fillRect(0, 0, reportCvs.width, reportCvs.height);
 
-            // Add Header
             rCtx.fillStyle = '#000000';
             rCtx.font = "bold 55px Arial";
             rCtx.textAlign = "center";
@@ -321,64 +324,35 @@
             let startY = 300;
 
             for(let i=1; i<=4; i++) {
-                // Draw Section Title
                 rCtx.fillStyle = '#d32f2f';
                 rCtx.font = "bold 45px Arial";
                 rCtx.fillText(titles[i-1], 500, startY + 60);
 
-                // Draw Map
                 let srcCvs = document.getElementById('canvas' + (i+1));
                 rCtx.drawImage(srcCvs, 100, startY + 100, 800, 800);
                 
-                // Draw Border
                 rCtx.strokeStyle = "#333";
                 rCtx.lineWidth = 5;
                 rCtx.strokeRect(100, startY + 100, 800, 800);
 
-                startY += 1020; // Move down for the next map
+                startY += 1020; 
             }
 
-            // Convert canvas to a beautiful JPEG image
+            // Get the image data
             const imgData = reportCvs.toDataURL('image/jpeg', 0.85);
             
-            // Show it on screen
+            // 1. Show the image on screen
             document.getElementById('finalReportImg').src = imgData;
             document.getElementById('finalReportImg').style.display = 'block';
             document.getElementById('loadingText').style.display = 'none';
             
-            // Prepare file for sharing
-            reportBlob = dataURItoBlob(imgData);
+            // 2. THIS IS THE MAGIC: Put the image data DIRECTLY into the link's href
+            // Android WebViews respect anchor tag downloads much better than JS triggered ones
+            const downloadBtn = document.getElementById('downloadLinkBtn');
+            downloadBtn.href = imgData;
 
         } catch (e) {
             alert("Error generating report: " + e.message);
-        }
-    }
-
-    // Helper to convert base64 to File
-    function dataURItoBlob(dataURI) {
-        let byteString = atob(dataURI.split(',')[1]);
-        let mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-        let ab = new ArrayBuffer(byteString.length);
-        let ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) { ia[i] = byteString.charCodeAt(i); }
-        return new Blob([ab], {type: mimeString});
-    }
-
-    // Mobile Share Intent Feature
-    async function shareReport() {
-        if (reportBlob && navigator.canShare) {
-            const file = new File([reportBlob], "Vastu_Report_Sai_Lohani.jpg", { type: "image/jpeg" });
-            try {
-                await navigator.share({
-                    files: [file],
-                    title: 'Vastu Analysis Report',
-                    text: 'Here is the Vastu Plot Analysis Report by Sai Lohani.'
-                });
-            } catch(e) { 
-                console.log("Share cancelled.");
-            }
-        } else {
-            alert("Share API not supported by your phone.\n\nPlease Long-Press on the image to Save or Share it!");
         }
     }
 </script>
