@@ -134,7 +134,7 @@
         <h2>6. Final PDF Preview</h2>
         
         <div class="instruction-box">
-            <b>Mobile Users:</b> App may block direct downloads. Click the yellow <b>"🖨️ Print / Save PDF"</b> button and select "Save as PDF" at the top of your screen to guarantee it saves!
+            <b>Mobile Users:</b> Android APK में PDF पहले फोन के Documents में save होगी, फिर Share/Print menu खुलेगा। वहाँ Print या Save/Share चुनें।
         </div>
 
         <div class="nav-buttons" style="flex-direction: column; align-items: center; margin-bottom: 20px;">
@@ -142,7 +142,7 @@
             
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button onclick="nextScreen(5)">⬅ Back</button>
-                <button onclick="directDownload()" class="download-btn">📥 Save PDF to Phone</button>
+                <button onclick="directDownload()" class="download-btn">📥 Save / Print PDF</button>
                 <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
             </div>
         </div>
@@ -412,61 +412,89 @@
         return new Blob([bytes], { type: mime });
     }
 
-    async function savePDFNative(pdf) {
-        // Capacitor Filesystem + Share, when available in the APK.
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-            const { Filesystem, Share } = window.Capacitor.Plugins;
-            const base64 = pdf.output('datauristring').split(',')[1];
-            const fileName = 'Vastu_Report_Sai_Lohani.pdf';
-            const saved = await Filesystem.writeFile({
-                path: fileName,
-                data: base64,
-                directory: 'Documents',
-                recursive: true
-            });
-            if (Share) {
+    async function savePDFNative(pdf, showShare = true) {
+        // Android/Capacitor: save the PDF into the app's Documents folder,
+        // then optionally open the Android share/print sheet. Browser download
+        // APIs are unreliable inside Android WebView, so do not depend on <a download>.
+        const plugins = window.Capacitor && window.Capacitor.Plugins;
+        const Filesystem = plugins && plugins.Filesystem;
+        const Share = plugins && plugins.Share;
+        if (!Filesystem) return false;
+
+        const base64 = pdf.output('datauristring').split(',')[1];
+        const fileName = 'Vastu_Report_' + Date.now() + '.pdf';
+
+        const saved = await Filesystem.writeFile({
+            path: fileName,
+            data: base64,
+            directory: 'DOCUMENTS',
+            recursive: true
+        });
+
+        if (showShare && Share) {
+            try {
                 await Share.share({
-                    title: 'Vastu Report',
-                    text: 'Vastu Plot Analysis PDF',
+                    title: 'Vastu Report PDF',
+                    text: 'Vastu Plot Analysis Report',
                     url: saved.uri,
-                    dialogTitle: 'Print / Save / Share PDF'
+                    dialogTitle: 'Save / Print / Share PDF'
                 });
+            } catch (shareError) {
+                // The PDF is already saved even if the share sheet is dismissed.
+                console.log('Share sheet closed:', shareError);
             }
-            return true;
         }
-        return false;
+
+        return { saved: true, uri: saved.uri, fileName };
     }
 
     async function printOrSavePDF() {
         try {
             const pdf = await makePDF();
-            const nativeDone = await savePDFNative(pdf);
-            if (!nativeDone) {
-                const blob = pdf.output('blob');
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'Vastu_Report_Sai_Lohani.pdf';
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 3000);
-                alert('PDF तैयार है। इसे Save/Print करने के लिए downloaded PDF खोलें।');
+            const result = await savePDFNative(pdf, true);
+            if (result && result.saved) {
+                alert('PDF save ho gaya: ' + result.fileName + '\nAb khulne wale Share/Print menu se Print ya Save/Share kar sakte hain.');
+                return;
             }
+
+            // Browser fallback only (not normally used in the Android APK).
+            const blob = pdf.output('blob');
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Vastu_Report.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 3000);
         } catch (e) {
             console.error(e);
-            alert('PDF बनाते समय समस्या हुई: ' + e.message);
+            alert('PDF save/print nahi ho saka: ' + (e && e.message ? e.message : e));
         }
     }
 
     async function directDownload() {
         try {
             const pdf = await makePDF();
-            const nativeDone = await savePDFNative(pdf);
-            if (!nativeDone) {
-                pdf.save('Vastu_Report_Sai_Lohani.pdf');
+            const result = await savePDFNative(pdf, true);
+            if (result && result.saved) {
+                alert('PDF phone mein save ho gaya: ' + result.fileName + '\nShare/Print menu se ise print ya kisi app mein bhej sakte hain.');
+                return;
             }
+
+            // Browser fallback only.
+            const blob = pdf.output('blob');
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Vastu_Report.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 3000);
         } catch (e) {
             console.error(e);
-            alert('PDF save नहीं हो सका: ' + e.message);
+            alert('PDF save nahi ho saka: ' + (e && e.message ? e.message : e));
         }
     }
 </script>
