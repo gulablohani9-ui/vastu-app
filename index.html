@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vastu Plot Analyzer - Sai Lohani</title>
     <!-- PDF Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
         .screen { display: none; padding: 10px; text-align: center; }
@@ -134,15 +134,15 @@
         <h2>6. Final PDF Preview</h2>
         
         <div class="instruction-box">
-            <b>Mobile Users:</b> The app will create all 4 pages as one A4 PDF. <b>Print All</b> opens the Android share/print sheet, and <b>Save PDF to Phone</b> saves the PDF in the app Documents folder.
+            <b>Mobile Users:</b> App may block direct downloads. Click the yellow <b>"🖨️ Print / Save PDF"</b> button and select "Save as PDF" at the top of your screen to guarantee it saves!
         </div>
 
         <div class="nav-buttons" style="flex-direction: column; align-items: center; margin-bottom: 20px;">
-            <button onclick="printAll()" class="print-btn">🖨️ Print All / Save PDF</button>
+            <button onclick="printOrSavePDF()" class="print-btn">🖨️ Print / Save PDF</button>
             
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button onclick="nextScreen(5)">⬅ Back</button>
-                <button onclick="savePdfToPhone()" class="download-btn">📥 Save PDF to Phone</button>
+                <button onclick="directDownload()" class="download-btn">📥 Save PDF to Phone</button>
                 <button onclick="nextScreen(1)" style="background: #607d8b;">Start Over</button>
             </div>
         </div>
@@ -204,14 +204,14 @@
         reader.readAsDataURL(file);
     }
 
-    async function nextScreen(num) {
+    function nextScreen(num) {
         document.getElementById('screen'+currentScreen).classList.remove('active');
         currentScreen = num;
         document.getElementById('screen'+currentScreen).classList.add('active');
         if (num >= 1 && num <= 5) {
             renderCanvas('canvas'+num, num - 1);
         } else if (num === 6) {
-            await buildPDFPreview();
+            buildPDFPreview(); 
         }
     }
 
@@ -312,169 +312,161 @@
         }
     }
 
-    // Build all four A4 pages. We keep the rendered pages as images so the
-    // PDF is identical on Chrome, Android WebView and the Capacitor APK.
-    async function buildPDFPreview() {
-        const previewArea = document.getElementById('pdf-preview-area');
-        previewArea.innerHTML = '<p id="loadingMsg">Preparing 4 pages…</p>';
+    // ===== PDF ENGINE =====
+    // Render every report page into a true A4 canvas (1190x1684) and build
+    // the PDF directly from those canvases. This avoids the mobile WebView
+    // html2pdf scroll-container clipping problem.
+    const A4_W = 1190;
+    const A4_H = 1684;
 
-        // Give the WebView one frame to finish the last canvas render.
-        await new Promise(resolve => requestAnimationFrame(resolve));
+    function waitForImage(img) {
+        return new Promise(resolve => {
+            if (!img || img.complete) return resolve();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+        });
+    }
+
+    async function renderReportPage(pageIndex) {
+        const renderCvs = document.getElementById('renderCanvas');
+        renderCvs.width = A4_W;
+        renderCvs.height = A4_H;
+        const rCtx = renderCvs.getContext('2d');
+        rCtx.setTransform(1, 0, 0, 1, 0, 0);
+        rCtx.fillStyle = '#ffffff';
+        rCtx.fillRect(0, 0, A4_W, A4_H);
 
         const titles = ["Vastu Chakra 1", "Vastu Chakra 2", "Vastu Chakra 3", "45 Vastu Devtas"];
-        const renderCvs = document.getElementById('renderCanvas');
-        const rCtx = renderCvs.getContext('2d');
-        const pageImages = [];
+        rCtx.fillStyle = '#000000';
+        rCtx.textAlign = 'center';
+        rCtx.font = 'bold 65px Arial';
+        rCtx.fillText('VASTU PLOT ANALYSIS', A4_W / 2, 120);
+        rCtx.font = '35px Arial';
+        rCtx.fillText('Consultant: Sai Lohani  |  Plot Degree: ' + degree + '°', A4_W / 2, 190);
+        rCtx.fillText('Contact: +91 XXXXXXXXXX', A4_W / 2, 250);
+        rCtx.fillStyle = '#d32f2f';
+        rCtx.font = 'bold 55px Arial';
+        rCtx.fillText(titles[pageIndex], A4_W / 2, 350);
 
-        for(let i=1; i<=4; i++) {
-            rCtx.fillStyle = '#ffffff';
-            rCtx.fillRect(0, 0, 1190, 1684);
+        const sourceCanvas = document.getElementById('canvas' + (pageIndex + 2));
+        // Keep the entire square chart visible with equal margins.
+        const w = 950, h = 950;
+        const startX = (A4_W - w) / 2;
+        const startY = 420;
+        rCtx.drawImage(sourceCanvas, startX, startY, w, h);
+        rCtx.strokeStyle = '#333';
+        rCtx.lineWidth = 5;
+        rCtx.strokeRect(startX, startY, w, h);
 
-            rCtx.fillStyle = '#000000';
-            rCtx.font = "bold 65px Arial";
-            rCtx.textAlign = "center";
-            rCtx.fillText("VASTU PLOT ANALYSIS", 595, 120);
-            rCtx.font = "35px Arial";
-            rCtx.fillText("Consultant: Sai Lohani  |  Plot Degree: " + degree + "°", 595, 190);
-            rCtx.fillText("Contact: +91 XXXXXXXXXX", 595, 250);
-            rCtx.fillStyle = '#d32f2f';
-            rCtx.font = "bold 55px Arial";
-            rCtx.fillText(titles[i-1], 595, 350);
+        rCtx.fillStyle = '#666';
+        rCtx.font = '30px Arial';
+        rCtx.fillText('Page ' + (pageIndex + 1) + ' of 4', A4_W / 2, 1600);
 
-            const sourceCanvas = document.getElementById('canvas'+(i+1));
-            const w = 950, h = 950;
-            const startX = (1190 - w) / 2;
-            const startY = 420;
-            rCtx.drawImage(sourceCanvas, startX, startY, w, h);
-            rCtx.strokeStyle = "#333";
-            rCtx.lineWidth = 5;
-            rCtx.strokeRect(startX, startY, w, h);
-            rCtx.fillStyle = '#666';
-            rCtx.font = "30px Arial";
-            rCtx.fillText("Page " + i + " of 4", 595, 1600);
+        return renderCvs.toDataURL('image/jpeg', 0.94);
+    }
 
-            const imgData = renderCvs.toDataURL('image/jpeg', 0.92);
-            pageImages.push(imgData);
+    async function buildPDFPreview() {
+        const previewArea = document.getElementById('pdf-preview-area');
+        previewArea.innerHTML = '<p id="loadingMsg">Preparing all 4 pages...</p>';
 
+        // Make sure source chakra images are available before drawing.
+        await Promise.all(chakraImages.slice(1).map(waitForImage));
+        for (let i = 1; i <= 5; i++) renderCanvas('canvas' + i, i - 1);
+
+        previewArea.innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+            const imgData = await renderReportPage(i);
             const imgEl = document.createElement('img');
             imgEl.src = imgData;
             imgEl.className = 'pdf-page-img';
             previewArea.appendChild(imgEl);
         }
-
-        previewArea.dataset.ready = 'true';
-        previewArea.dataset.pages = pageImages.length;
-        document.getElementById('loadingMsg')?.remove();
     }
 
-    function dataUriToBase64(dataUri) {
-        return dataUri.split(',')[1];
-    }
-
-    async function makePdfBlob() {
-        const element = document.getElementById('pdf-preview-area');
-        if (element.dataset.ready !== 'true') await buildPDFPreview();
-
-        const opt = {
-            margin: 0,
-            filename: 'Vastu_Report_Sai_Lohani.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 1, useCORS: true, backgroundColor: '#ffffff' },
-            pagebreak: { mode: ['css', 'legacy'] },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
-        };
-        return await html2pdf().set(opt).from(element).outputPdf('blob');
-    }
-
-    async function savePdfToPhone() {
-        try {
-            if (typeof html2pdf === 'undefined') throw new Error('PDF library not loaded');
-            const blob = await makePdfBlob();
-            const arrayBuffer = await blob.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            let binary = '';
-            const chunk = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunk) {
-                binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-            }
-            const base64 = btoa(binary);
-            const fileName = 'Vastu_Report_Sai_Lohani_' + Date.now() + '.pdf';
-
-            // Capacitor Filesystem (APK)
-            const Filesystem = window.Capacitor?.Plugins?.Filesystem;
-            if (Filesystem) {
-                const result = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64,
-                    directory: 'DOCUMENTS',
-                    recursive: true
-                });
-                alert('PDF saved successfully.\nFile: ' + fileName);
-                return result;
-            }
-
-            // Browser fallback
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 2000);
-        } catch (err) {
-            console.error('Save PDF failed:', err);
-            alert('PDF save failed. Please use Print All and choose Save as PDF.');
+    async function makePDF() {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            throw new Error('PDF library load nahi hui. Internet connection check karein.');
         }
+        await Promise.all(chakraImages.slice(1).map(waitForImage));
+        for (let i = 1; i <= 5; i++) renderCanvas('canvas' + i, i - 1);
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+
+        for (let i = 0; i < 4; i++) {
+            const imgData = await renderReportPage(i);
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
+        }
+        return pdf;
     }
 
-    async function printAll() {
-        try {
-            const blob = await makePdfBlob();
-            const fileName = 'Vastu_Report_Sai_Lohani_' + Date.now() + '.pdf';
-            const arrayBuffer = await blob.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            let binary = '';
-            const chunk = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunk) {
-                binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-            }
-            const base64 = btoa(binary);
-            const Filesystem = window.Capacitor?.Plugins?.Filesystem;
-            const Share = window.Capacitor?.Plugins?.Share;
+    function dataUriToBlob(dataUri) {
+        const parts = dataUri.split(',');
+        const mime = parts[0].match(/:(.*?);/)[1];
+        const binary = atob(parts[1]);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
+    }
 
-            if (Filesystem && Share) {
-                const saved = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64,
-                    directory: 'CACHE',
-                    recursive: true
-                });
+    async function savePDFNative(pdf) {
+        // Capacitor Filesystem + Share, when available in the APK.
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+            const { Filesystem, Share } = window.Capacitor.Plugins;
+            const base64 = pdf.output('datauristring').split(',')[1];
+            const fileName = 'Vastu_Report_Sai_Lohani.pdf';
+            const saved = await Filesystem.writeFile({
+                path: fileName,
+                data: base64,
+                directory: 'Documents',
+                recursive: true
+            });
+            if (Share) {
                 await Share.share({
                     title: 'Vastu Report',
                     text: 'Vastu Plot Analysis PDF',
                     url: saved.uri,
-                    dialogTitle: 'Print / Share Vastu PDF'
+                    dialogTitle: 'Print / Save / Share PDF'
                 });
-                return;
             }
+            return true;
+        }
+        return false;
+    }
 
-            // Web fallback: open the generated PDF in a new tab so the
-            // browser/Android print menu can handle it.
-            const url = URL.createObjectURL(blob);
-            const opened = window.open(url, '_blank');
-            if (!opened) {
+    async function printOrSavePDF() {
+        try {
+            const pdf = await makePDF();
+            const nativeDone = await savePDFNative(pdf);
+            if (!nativeDone) {
+                const blob = pdf.output('blob');
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
+                a.download = 'Vastu_Report_Sai_Lohani.pdf';
                 a.click();
-                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 3000);
+                alert('PDF तैयार है। इसे Save/Print करने के लिए downloaded PDF खोलें।');
             }
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
-        } catch (err) {
-            console.error('Print All failed:', err);
-            alert('Print failed. Please try Save PDF to Phone.');
+        } catch (e) {
+            console.error(e);
+            alert('PDF बनाते समय समस्या हुई: ' + e.message);
+        }
+    }
+
+    async function directDownload() {
+        try {
+            const pdf = await makePDF();
+            const nativeDone = await savePDFNative(pdf);
+            if (!nativeDone) {
+                pdf.save('Vastu_Report_Sai_Lohani.pdf');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('PDF save नहीं हो सका: ' + e.message);
         }
     }
 </script>
